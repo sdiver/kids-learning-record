@@ -501,27 +501,41 @@
             </div>
         </div>
 
+        <!-- 学习简报 -->
+        <div class="briefing-card" id="briefingCard" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 20px; padding: 20px 25px; margin-bottom: 25px; color: white; box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);">
+            <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
+                <div style="font-size: 2rem;">📊</div>
+                <div>
+                    <div style="font-size: 1.1rem; font-weight: 700;">学习小简报</div>
+                    <div style="font-size: 0.85rem; opacity: 0.9;" id="briefingSubtitle">来看看你的学习成果吧~</div>
+                </div>
+            </div>
+            <div id="briefingContent" style="font-size: 0.95rem; line-height: 1.6; background: rgba(255,255,255,0.15); border-radius: 12px; padding: 15px;">
+                正在生成学习简报...
+            </div>
+        </div>
+
         <!-- 统计卡片 -->
         <div class="stats-grid">
             <div class="stat-card">
                 <div class="stat-icon">📚</div>
                 <div class="stat-value" id="totalRecords">12</div>
-                <div class="stat-label">学习记录</div>
+                <div class="stat-label">学习足迹</div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon">⏱️</div>
                 <div class="stat-value" id="totalMinutes">180</div>
-                <div class="stat-label">学习分钟</div>
+                <div class="stat-label">专注时光(分)</div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon">⭐</div>
                 <div class="stat-value" id="avgPerformance">4.5</div>
-                <div class="stat-label">平均表现</div>
+                <div class="stat-label">努力指数</div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon">🏆</div>
+                <div class="stat-icon">🎯</div>
                 <div class="stat-value" id="totalPoints">40</div>
-                <div class="stat-label">积分</div>
+                <div class="stat-label">成长积分</div>
             </div>
         </div>
 
@@ -531,7 +545,7 @@
             <div class="card">
                 <div class="card-title">
                     <span>📝</span>
-                    <span>今日学习记录</span>
+                    <span>今日学习小记</span>
                 </div>
                 <div class="record-list" id="recordList">
                     <div class="record-item">
@@ -564,8 +578,8 @@
             <!-- 成就墙 -->
             <div class="card">
                 <div class="card-title">
-                    <span>🏆</span>
-                    <span>我的成就</span>
+                    <span>🏅</span>
+                    <span>荣誉勋章墙</span>
                 </div>
                 <div class="achievement-grid" id="achievementGrid">
                     <div class="achievement-item">
@@ -603,7 +617,7 @@
     <!-- 添加记录模态框 -->
     <div class="modal" id="recordModal">
         <div class="modal-content">
-            <div class="modal-title">📝 添加学习记录</div>
+            <div class="modal-title">📝 记录新本领</div>
 
             <div class="form-group">
                 <label class="form-label">选择科目</label>
@@ -845,9 +859,90 @@
                     document.getElementById('totalMinutes').textContent = data.data.total_minutes || 0;
                     document.getElementById('avgPerformance').textContent = data.data.avg_performance || '0.0';
                     document.getElementById('totalPoints').textContent = data.data.total_points || 0;
+
+                    // 生成学习简报
+                    generateBriefing(data.data, kidId);
                 }
             } catch (error) {
                 console.error('加载统计数据失败:', error);
+            }
+        }
+
+        // 生成学习简报
+        async function generateBriefing(stats, kidId) {
+            const kid = kidsList.find(k => k.id === kidId);
+            const kidName = kid ? kid.name : '小朋友';
+
+            // 获取最近记录用于分析
+            try {
+                const res = await fetch(`${API_BASE}/records?kid_id=${kidId}&limit=10`);
+                const data = await res.json();
+                const records = data.data || [];
+
+                // 简报模板
+                const templates = {
+                    excellent: [
+                        `🌟 ${kidName}太棒了！已经积累了<strong>${stats.total_records}</strong>个学习足迹，真是个爱学习的好孩子！`,
+                        `🚀 ${kidName}的学习火箭已经飞行了<strong>${stats.total_minutes}</strong>分钟，继续加油冲向知识星球！`,
+                        `🎉 ${kidName}的表现太出色了！平均努力指数达到<strong>${stats.avg_performance}</strong>分，继续保持哦！`
+                    ],
+                    good: [
+                        `👍 ${kidName}最近表现不错！已经有<strong>${stats.total_records}</strong>次学习记录，继续加油！`,
+                        `📚 ${kidName}在知识的海洋里已经航行了<strong>${stats.total_minutes}</strong>分钟，再接再厉！`,
+                        `⭐ ${kidName}的努力值得表扬！继续积累学习足迹，成为更好的自己！`
+                    ],
+                    start: [
+                        `🌱 ${kidName}的学习之旅刚刚开始！记录下第一次学习足迹吧~`,
+                        `💪 ${kidName}加油！每一点进步都值得被记录，从今天开始积累吧！`,
+                        `🎯 ${kidName}准备好开始新的学习冒险了吗？快去添加第一条记录吧！`
+                    ]
+                };
+
+                // 选择模板
+                let template;
+                if (stats.total_records >= 10) {
+                    template = templates.excellent;
+                } else if (stats.total_records >= 3) {
+                    template = templates.good;
+                } else {
+                    template = templates.start;
+                }
+
+                // 随机选择一条
+                const briefing = template[Math.floor(Math.random() * template.length)];
+
+                // 额外分析
+                let extraAnalysis = '';
+                if (records.length > 0) {
+                    // 计算连续学习天数
+                    const dates = [...new Set(records.map(r => r.learning_date))].sort();
+                    const today = new Date().toISOString().split('T')[0];
+                    const hasToday = dates.includes(today);
+
+                    if (hasToday) {
+                        extraAnalysis += `🎯 今天已经有学习记录，${kidName}真棒！`;
+                    } else {
+                        extraAnalysis += `⏰ 今天还没有学习记录，快去添加一个吧！`;
+                    }
+
+                    // 分析最喜欢的科目
+                    const subjectCounts = {};
+                    records.forEach(r => {
+                        subjectCounts[r.subject_name] = (subjectCounts[r.subject_name] || 0) + 1;
+                    });
+                    const favSubject = Object.entries(subjectCounts).sort((a, b) => b[1] - a[1])[0];
+                    if (favSubject) {
+                        extraAnalysis += `<br>💖 最喜欢的是${favSubject[0]}，共学习了${favSubject[1]}次~`;
+                    }
+                }
+
+                // 更新简报内容
+                document.getElementById('briefingContent').innerHTML = briefing + (extraAnalysis ? `<div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.3);">${extraAnalysis}</div>` : '');
+                document.getElementById('briefingSubtitle').textContent = `${kidName}的学习成长报告`;
+
+            } catch (error) {
+                console.error('生成简报失败:', error);
+                document.getElementById('briefingContent').textContent = '加载简报失败，请稍后重试~';
             }
         }
 

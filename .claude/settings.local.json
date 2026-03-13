@@ -13,7 +13,8 @@
       "Bash(curl -s http://localhost:3000/api/kids)",
       "Bash(curl -s http://localhost:3000/api/health)",
       "Bash(curl -s http://localhost:3000/reading.html | head -50)",
-      "Bash(git init:*)"
+      "Bash(git init:*)",
+      "Bash(git add:*)"
     ]
   }
 }

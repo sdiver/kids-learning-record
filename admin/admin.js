@@ -99,6 +99,10 @@ async function loadDashboard() {
         const records = await recordsRes.json();
         renderRecentRecords(records.data || []);
 
+        // 加载日历数据
+        initCalendar();
+        loadCalendarData();
+
     } catch (error) {
         showToast('加载数据失败', 'error');
     }
@@ -683,3 +687,211 @@ document.querySelectorAll('.modal').forEach(modal => {
         }
     });
 });
+
+// ==================== 日历功能 ====================
+
+let currentCalendarDate = new Date();
+let calendarRecords = [];
+
+// 初始化日历
+function initCalendar() {
+    // 填充小朋友选择器
+    const select = document.getElementById('calendarKidSelect');
+    if (select && kidsData.length > 0) {
+        select.innerHTML = '<option value="">所有小朋友</option>' +
+            kidsData.map(kid => `<option value="${kid.id}">${kid.name}</option>`).join('');
+    }
+}
+
+// 加载日历数据
+async function loadCalendarData() {
+    try {
+        const year = currentCalendarDate.getFullYear();
+        const month = currentCalendarDate.getMonth() + 1;
+        const kidId = document.getElementById('calendarKidSelect')?.value || '';
+
+        // 更新月份标签
+        document.getElementById('currentMonthLabel').textContent =
+            `${year}年${month}月`;
+
+        // 获取该月的所有记录
+        let url = `${API_BASE}/records?limit=1000`;
+        if (kidId) {
+            url += `&kid_id=${kidId}`;
+        }
+
+        const res = await fetch(url);
+        const data = await res.json();
+        calendarRecords = data.data || [];
+
+        // 过滤当前月份的记录
+        const monthRecords = calendarRecords.filter(record => {
+            const recordDate = new Date(record.learning_date);
+            return recordDate.getFullYear() === year &&
+                   recordDate.getMonth() === currentCalendarDate.getMonth();
+        });
+
+        renderCalendar(year, month, monthRecords);
+    } catch (error) {
+        console.error('加载日历数据失败:', error);
+    }
+}
+
+// 渲染日历
+function renderCalendar(year, month, records) {
+    const container = document.getElementById('calendarContainer');
+    if (!container) return;
+
+    const firstDay = new Date(year, month - 1, 1);
+    const lastDay = new Date(year, month, 0);
+    const startDayOfWeek = firstDay.getDay();
+    const daysInMonth = lastDay.getDate();
+
+    // 按日期分组记录
+    const recordsByDate = {};
+    records.forEach(record => {
+        const date = record.learning_date;
+        if (!recordsByDate[date]) {
+            recordsByDate[date] = {
+                records: [],
+                totalMinutes: 0,
+                hasReading: false,
+                hasPractice: false
+            };
+        }
+        recordsByDate[date].records.push(record);
+        recordsByDate[date].totalMinutes += parseInt(record.duration) || 0;
+
+        // 判断记录类型
+        if (record.subject_name === '阅读' || record.content?.includes('朗读')) {
+            recordsByDate[date].hasReading = true;
+        }
+        if (record.subject_name === '练习' || record.content?.includes('练习')) {
+            recordsByDate[date].hasPractice = true;
+        }
+    });
+
+    // 生成日历HTML
+    let html = '<table class="calendar"><thead><tr>';
+    const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
+    weekDays.forEach(day => {
+        html += `<th>${day}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+
+    let dayCount = 1;
+    let prevMonthDays = new Date(year, month - 1, 0).getDate();
+
+    for (let week = 0; week < 6; week++) {
+        html += '<tr>';
+        for (let day = 0; day < 7; day++) {
+            const cellIndex = week * 7 + day;
+
+            if (week === 0 && day < startDayOfWeek) {
+                // 上个月的日期
+                const prevDay = prevMonthDays - startDayOfWeek + day + 1;
+                html += `<td class="other-month"><div class="date-number">${prevDay}</div></td>`;
+            } else if (dayCount > daysInMonth) {
+                // 下个月的日期
+                const nextDay = dayCount - daysInMonth;
+                html += `<td class="other-month"><div class="date-number">${nextDay}</div></td>`;
+                dayCount++;
+            } else {
+                // 当前月的日期
+                const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(dayCount).padStart(2, '0')}`;
+                const dayData = recordsByDate[dateStr];
+                const isToday = new Date().toISOString().split('T')[0] === dateStr;
+
+                let cellClass = isToday ? 'today' : '';
+                html += `<td class="${cellClass}" onclick="showDayDetail('${dateStr}')">`;
+                html += `<div class="date-number">${dayCount}</div>`;
+
+                if (dayData) {
+                    html += '<div class="study-info">';
+
+                    // 显示学习类型标记
+                    if (dayData.hasReading || dayData.hasPractice) {
+                        html += '<div>';
+                        if (dayData.hasReading) html += '<span class="study-dot reading" title="阅读"></span>';
+                        if (dayData.hasPractice) html += '<span class="study-dot practice" title="练习"></span>';
+                        if (!dayData.hasReading && !dayData.hasPractice) html += '<span class="study-dot record" title="记录"></span>';
+                        html += '</div>';
+                    }
+
+                    // 显示记录数和时长
+                    html += `<div class="study-count">${dayData.records.length} 条记录</div>`;
+                    html += `<div style="color: #666; font-size: 0.7rem;">${dayData.totalMinutes} 分钟</div>`;
+
+                    html += '</div>';
+                }
+
+                html += '</td>';
+                dayCount++;
+            }
+        }
+        html += '</tr>';
+
+        if (dayCount > daysInMonth && week > 0) break;
+    }
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+// 切换月份
+function changeMonth(delta) {
+    currentCalendarDate.setMonth(currentCalendarDate.getMonth() + delta);
+    loadCalendarData();
+}
+
+// 回到今天
+function goToToday() {
+    currentCalendarDate = new Date();
+    loadCalendarData();
+}
+
+// 显示某天详情
+function showDayDetail(dateStr) {
+    const dayData = calendarRecords.filter(r => r.learning_date === dateStr);
+    if (dayData.length === 0) return;
+
+    const kidName = dayData[0].kid_name || '未知';
+    const totalMinutes = dayData.reduce((sum, r) => sum + (parseInt(r.duration) || 0), 0);
+
+    let content = `<h3>${dateStr} 学习记录</h3>`;
+    content += `<p><strong>小朋友：</strong>${kidName}</p>`;
+    content += `<p><strong>总时长：</strong>${totalMinutes} 分钟</p>`;
+    content += `<p><strong>记录数：</strong>${dayData.length} 条</p>`;
+    content += '<hr style="margin: 15px 0;">';
+    content += '<table style="width: 100%; font-size: 0.9rem;">';
+    content += '<tr><th style="text-align: left;">科目</th><th style="text-align: left;">内容</th><th>时长</th><th>评分</th></tr>';
+
+    dayData.forEach(record => {
+        content += `<tr>
+            <td>${record.subject_icon || ''} ${record.subject_name || '未知'}</td>
+            <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${record.content || '-'}</td>
+            <td style="text-align: center;">${record.duration}分钟</td>
+            <td style="text-align: center;">${'⭐'.repeat(record.performance || 0)}</td>
+        </tr>`;
+    });
+
+    content += '</table>';
+
+    // 创建弹窗
+    const modal = document.createElement('div');
+    modal.className = 'modal show';
+    modal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center;';
+    modal.innerHTML = `
+        <div style="background: white; border-radius: 20px; padding: 30px; width: 90%; max-width: 600px; max-height: 80vh; overflow-y: auto;">
+            ${content}
+            <div style="text-align: center; margin-top: 20px;">
+                <button onclick="this.closest('.modal').remove()" class="btn btn-primary">关闭</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.remove();
+    });
+}

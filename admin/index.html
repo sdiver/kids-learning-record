@@ -245,6 +245,96 @@
             font-size: 0.8rem;
         }
 
+        /* 日历样式 */
+        .calendar {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .calendar th {
+            padding: 12px 8px;
+            text-align: center;
+            font-weight: 600;
+            color: #666;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .calendar td {
+            width: 14.28%;
+            height: 100px;
+            padding: 8px;
+            vertical-align: top;
+            border: 1px solid #e0e0e0;
+            position: relative;
+            transition: all 0.2s;
+        }
+
+        .calendar td:hover {
+            background: #f5f7ff;
+        }
+
+        .calendar td.other-month {
+            background: #f8f9fa;
+            color: #aaa;
+        }
+
+        .calendar td.today {
+            background: #fff3cd;
+            border: 2px solid #FFD93D;
+        }
+
+        .calendar .date-number {
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 4px;
+        }
+
+        .calendar .study-info {
+            font-size: 0.75rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .calendar .study-dot {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin-right: 4px;
+        }
+
+        .calendar .study-dot.reading {
+            background: #ff6b6b;
+        }
+
+        .calendar .study-dot.practice {
+            background: #FFD93D;
+        }
+
+        .calendar .study-dot.record {
+            background: #4CAF50;
+        }
+
+        .calendar .study-count {
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .calendar-stats {
+            margin-top: 4px;
+            padding-top: 4px;
+            border-top: 1px dashed #e0e0e0;
+        }
+
+        .calendar-stats .stat-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            color: #666;
+        }
+
         /* 表格 */
         .data-table {
             width: 100%;
@@ -639,7 +729,7 @@
         <!-- 数据概览页面 -->
         <div id="page-dashboard" class="page">
             <div class="header">
-                <h2>数据概览</h2>
+                <h2>🌟 智慧大屏</h2>
                 <div class="header-actions">
                     <button class="btn btn-secondary" onclick="refreshData()">🔄 刷新</button>
                 </div>
@@ -668,9 +758,33 @@
                 </div>
             </div>
 
+            <!-- 学习日历 -->
+            <div class="card">
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 class="card-title">📅 学习时光机</h3>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <select id="calendarKidSelect" onchange="loadCalendarData()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.9rem;">
+                            <option value="">所有小朋友</option>
+                        </select>
+                        <button class="btn btn-secondary" onclick="changeMonth(-1)">◀</button>
+                        <span id="currentMonthLabel" style="font-weight: 600; min-width: 120px; text-align: center;"></span>
+                        <button class="btn btn-secondary" onclick="changeMonth(1)">▶</button>
+                        <button class="btn btn-secondary" onclick="goToToday()">今天</button>
+                    </div>
+                </div>
+                <div id="calendarContainer" style="padding: 20px;">
+                    <!-- 日历将在这里生成 -->
+                </div>
+                <div id="calendarLegend" style="padding: 0 20px 20px; display: flex; gap: 20px; flex-wrap: wrap; font-size: 0.85rem; color: #666;">
+                    <span><span style="display: inline-block; width: 12px; height: 12px; background: #4CAF50; border-radius: 2px; margin-right: 5px;"></span>有学习记录</span>
+                    <span><span style="display: inline-block; width: 12px; height: 12px; background: #ff6b6b; border-radius: 2px; margin-right: 5px;"></span>阅读练习</span>
+                    <span><span style="display: inline-block; width: 12px; height: 12px; background: #FFD93D; border-radius: 2px; margin-right: 5px;"></span>互动练习</span>
+                </div>
+            </div>
+
             <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title">📈 最近学习记录</h3>
+                    <h3 class="card-title">📈 学习足迹长廊</h3>
                 </div>
                 <table class="data-table">
                     <thead>
@@ -692,7 +806,7 @@
         <!-- 小朋友管理页面 -->
         <div id="page-kids" class="page hidden">
             <div class="header">
-                <h2>小朋友管理</h2>
+                <h2>👶 小队员档案室</h2>
                 <div class="header-actions">
                     <button class="btn btn-primary" onclick="showKidModal()">+ 添加小朋友</button>
                 </div>
@@ -721,7 +835,7 @@
         <!-- 学习记录页面 -->
         <div id="page-records" class="page hidden">
             <div class="header">
-                <h2>学习记录</h2>
+                <h2>📝 学习足迹管理</h2>
                 <div class="header-actions">
                     <select class="form-select" id="filterKid" style="width: 150px;" onchange="loadRecords()">
                         <option value="">所有小朋友</option>
@@ -753,7 +867,7 @@
         <!-- 科目管理页面 -->
         <div id="page-subjects" class="page hidden">
             <div class="header">
-                <h2>科目管理</h2>
+                <h2>📚 学科大本营</h2>
                 <div class="header-actions">
                     <button class="btn btn-primary" onclick="showSubjectModal()">+ 添加科目</button>
                 </div>
@@ -780,7 +894,7 @@
         <!-- 成就管理页面 -->
         <div id="page-achievements" class="page hidden">
             <div class="header">
-                <h2>成就管理</h2>
+                <h2>🏅 荣誉勋章室</h2>
                 <div class="header-actions">
                     <select class="form-select" id="filterAchievementKid" style="width: 150px;" onchange="loadAchievements()">
                         <option value="">所有小朋友</option>
@@ -811,7 +925,7 @@
         <!-- 积分记录页面 -->
         <div id="page-points" class="page hidden">
             <div class="header">
-                <h2>积分记录</h2>
+                <h2>🎯 积分加油站</h2>
                 <div class="header-actions">
                     <select class="form-select" id="filterPointsKid" style="width: 150px;" onchange="loadPoints()">
                         <option value="">所有小朋友</option>
