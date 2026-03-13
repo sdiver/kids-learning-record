@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能阅读 - 小朋友学习记录</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Nunito', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        /* 头部 */
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: white;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: rgba(255,255,255,0.9);
+            font-size: 1.1rem;
+        }
+
+        .back-link {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            text-decoration: none;
+            color: #667eea;
+            font-weight: 600;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+
+        /* 文章选择 */
+        .article-selector {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .selector-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .article-list {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .article-btn {
+            padding: 10px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 20px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: inherit;
+            font-size: 0.9rem;
+        }
+
+        .article-btn:hover {
+            border-color: #667eea;
+            background: #f5f7ff;
+        }
+
+        .article-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .article-btn.custom {
+            background: #E8F5E9;
+            border-color: #4CAF50;
+            color: #2e7d32;
+        }
+
+        .article-btn.custom:hover {
+            background: #C8E6C9;
+        }
+
+        /* 阅读区域 */
+        .reading-area {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            min-height: 400px;
+        }
+
+        .reading-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .article-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .reading-stats {
+            display: flex;
+            gap: 20px;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        /* 文章内容 */
+        .article-content {
+            font-size: 2.5rem;
+            line-height: 2.5;
+            color: #333;
+            text-align: justify;
+            user-select: none;
+        }
+
+        .char {
+            display: inline-block;
+            padding: 5px 3px;
+            margin: 2px;
+            border-radius: 8px;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .char:hover {
+            background: #f0f0f0;
+        }
+
+        .char.current {
+            background: #FFD93D;
+            transform: scale(1.2);
+            box-shadow: 0 3px 10px rgba(255, 217, 61, 0.5);
+        }
+
+        .char.correct {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .char.wrong {
+            background: #f44336;
+            color: white;
+            animation: shake 0.5s;
+        }
+
+        .char.wrong::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 10%;
+            width: 80%;
+            height: 3px;
+            background: white;
+            transform: rotate(-15deg);
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        /* 标点符号 */
+        .punct {
+            color: #999;
+        }
+
+        /* 控制区域 */
+        .control-area {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #666;
+        }
+
+        .btn-secondary:hover {
+            background: #d0d0d0;
+        }
+
+        /* 状态指示器 */
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+
+        .status-indicator.listening {
+            background: #E8F5E9;
+            color: #2e7d32;
+        }
+
+        .status-indicator.processing {
+            background: #FFF3E0;
+            color: #e65100;
+        }
+
+        .status-indicator.error {
+            background: #FFEBEE;
+            color: #c62828;
+        }
+
+        .status-indicator.success {
+            background: #E3F2FD;
+            color: #1565c0;
+        }
+
+        /* 麦克风动画 */
+        .mic-icon {
+            font-size: 1.5rem;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+
+        /* 进度条 */
+        .progress-container {
+            margin-top: 20px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: #e0e0e0;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s;
+        }
+
+        .progress-text {
+            text-align: center;
+            margin-top: 10px;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        /* 设置区域 */
+        .settings-area {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .settings-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .setting-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+
+        .setting-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .speed-slider {
+            flex: 1;
+            max-width: 200px;
+        }
+
+        /* 结果展示 */
+        .result-area {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .result-score {
+            font-size: 3rem;
+            font-weight: 800;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .result-detail {
+            color: #666;
+            font-size: 1rem;
+            margin-bottom: 20px;
+        }
+
+        /* 字词详情弹窗 */
+        .word-popup {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 12px;
+            font-size: 1.2rem;
+            z-index: 1000;
+            animation: slideUp 0.3s;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateX(-50%) translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(-50%) translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .word-popup .pinyin {
+            color: #FFD93D;
+            font-size: 1rem;
+            margin-bottom: 5px;
+        }
+
+        /* 错误列表 */
+        .error-list {
+            margin-top: 20px;
+            padding: 20px;
+            background: #FFEBEE;
+            border-radius: 12px;
+        }
+
+        .error-list h4 {
+            color: #c62828;
+            margin-bottom: 10px;
+        }
+
+        .error-item {
+            display: inline-block;
+            padding: 5px 12px;
+            margin: 5px;
+            background: #f44336;
+            color: white;
+            border-radius: 15px;
+            font-size: 1.2rem;
+        }
+
+        /* 隐藏 */
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="back-link">← 返回首页</a>
+    <a href="/mistakes.html" style="position:fixed;top:20px;right:20px;background:linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);padding:10px 20px;border-radius:20px;text-decoration:none;color:white;font-weight:600;box-shadow:0 2px 10px rgba(0,0,0,0.1);z-index:100;">📝 错字本</a>
+
+    <div class="container">
+        <!-- 头部 -->
+        <div class="header">
+            <h1>📖 智能阅读</h1>
+            <p>大声朗读，我会帮你纠正</p>
+        </div>
+
+        <!-- 设置区域 -->
+        <div class="settings-area">
+            <div class="settings-title">⚙️ 阅读设置</div>
+            <div class="setting-item">
+                <span class="setting-label">朗读速度：</span>
+                <input type="range" class="speed-slider" id="speedSlider" min="1" max="5" value="3">
+                <span id="speedValue">正常</span>
+            </div>
+        </div>
+
+        <!-- 文章选择 -->
+        <div class="article-selector">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <div class="selector-title">📚 选择文章</div>
+                <button class="btn btn-secondary" onclick="showAddArticleModal()" style="padding: 8px 15px; font-size: 0.9rem;">
+                    ➕ 添加文章
+                </button>
+            </div>
+            <div class="article-list" id="articleList">
+                <!-- 动态生成 -->
+            </div>
+        </div>
+
+        <!-- 阅读区域 -->
+        <div class="reading-area">
+            <div class="reading-header">
+                <div class="article-title" id="articleTitle">请选择一篇文章</div>
+                <div class="reading-stats">
+                    <div class="stat">
+                        <div class="stat-number" id="correctCount">0</div>
+                        <div class="stat-label">正确</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-number" id="wrongCount">0</div>
+                        <div class="stat-label">错误</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-number" id="accuracy">0%</div>
+                        <div class="stat-label">正确率</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="article-content" id="articleContent">
+                <div style="text-align: center; color: #999; padding: 100px 0;">
+                    请先选择一篇文章开始阅读
+                </div>
+            </div>
+
+            <div class="progress-container hidden" id="progressContainer">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                </div>
+                <div class="progress-text" id="progressText">0 / 0 字</div>
+            </div>
+
+            <div class="status-indicator hidden" id="statusIndicator">
+                <span class="mic-icon">🎤</span>
+                <span id="statusText">准备就绪</span>
+            </div>
+
+            <div class="control-area">
+                <button class="btn btn-primary" id="startBtn" onclick="startReading()">
+                    🎤 开始朗读
+                </button>
+                <button class="btn btn-secondary hidden" id="pauseBtn" onclick="pauseReading()">
+                    ⏸️ 暂停
+                </button>
+                <button class="btn btn-secondary hidden" id="resumeBtn" onclick="resumeReading()">
+                    ▶️ 继续
+                </button>
+                <button class="btn btn-secondary" id="resetBtn" onclick="resetReading()">
+                    🔄 重新开始
+                </button>
+                <button class="btn btn-secondary" id="testMistakeBtn" onclick="testAddMistake()">
+                    🧪 测试错字本
+                </button>
+                <button class="btn btn-secondary hidden" id="saveBtn" onclick="saveReadingRecord()">
+                    💾 保存记录
+                </button>
+            </div>
+
+            <div class="result-area hidden" id="resultArea">
+                <div class="result-score" id="resultScore">0%</div>
+                <div class="result-detail" id="resultDetail"></div>
+                <div class="error-list hidden" id="errorList">
+                    <h4>❌ 读错的字：</h4>
+                    <div id="errorWords"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加文章模态框 -->
+    <div class="modal hidden" id="addArticleModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: white; border-radius: 20px; padding: 30px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto;">
+            <h3 style="margin-bottom: 20px; color: #333;">➕ 添加自定义文章</h3>
+
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #555;">文章标题 *</label>
+                <input type="text" id="newArticleTitle" placeholder="例如：小猫钓鱼" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 1rem; font-family: inherit;">
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #555;">作者（可选）</label>
+                <input type="text" id="newArticleAuthor" placeholder="例如：佚名" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 1rem; font-family: inherit;">
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #555;">难度</label>
+                <select id="newArticleLevel" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 1rem; font-family: inherit;">
+                    <option value="easy">⭐ 简单（儿歌、古诗）</option>
+                    <option value="medium">⭐⭐ 中等（短文）</option>
+                    <option value="hard">⭐⭐⭐ 困难（长文）</option>
+                </select>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #555;">文章内容 *</label>
+                <textarea id="newArticleContent" placeholder="请粘贴或输入文章内容...建议100字以内" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 1rem; font-family: inherit; min-height: 150px; resize: vertical;"></textarea>
+                <small style="color: #888; display: block; margin-top: 5px;">已输入 <span id="charCount">0</span> 字</small>
+            </div>
+
+            <div style="display: flex; gap: 15px;">
+                <button class="btn btn-secondary" onclick="closeAddArticleModal()" style="flex: 1;">取消</button>
+                <button class="btn btn-primary" onclick="addCustomArticle()" style="flex: 1;">添加</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="reading.js"></script>
+</body>
+</html>

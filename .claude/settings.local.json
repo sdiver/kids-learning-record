@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /Users/shixiangren/Work/parenting -type f -name \"*.html\" -o -name \"*.js\" -o -name \"*.css\" -o -name \"*.json\" -o -name \"*.py\" -o -name \"*.ts\" 2>/dev/null | head -50)",
+      "WebSearch",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)",
+      "Bash(brew services:*)",
+      "Bash(mysql --version)",
+      "Bash(sleep 3 && mysql -u root -e \"SELECT 1\" 2>/dev/null && echo \"MySQL is running\" || echo \"MySQL failed to start\")",
+      "Bash(npm start:*)",
+      "Bash(curl -s http://localhost:3000/api/health || echo \"Server not running\")",
+      "Bash(curl -s http://localhost:3000/api/kids)",
+      "Bash(curl -s http://localhost:3000/api/health)",
+      "Bash(curl -s http://localhost:3000/reading.html | head -50)",
+      "Bash(git init:*)"
+    ]
+  }
+}

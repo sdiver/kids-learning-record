@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>错字本 - 小朋友学习记录</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Nunito', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: white;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: rgba(255,255,255,0.9);
+            font-size: 1.1rem;
+        }
+
+        .back-link {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            text-decoration: none;
+            color: #667eea;
+            font-weight: 600;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+
+        /* 统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            text-align: center;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #888;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+
+        /* 功能卡片 */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .feature-card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .feature-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* 错字列表 */
+        .mistake-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .mistake-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            margin-bottom: 10px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            transition: all 0.3s;
+        }
+
+        .mistake-item:hover {
+            background: #e9ecef;
+        }
+
+        .mistake-char {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #333;
+            width: 50px;
+            text-align: center;
+        }
+
+        .mistake-info {
+            flex: 1;
+            padding: 0 15px;
+        }
+
+        .mistake-pinyin {
+            color: #667eea;
+            font-size: 0.9rem;
+        }
+
+        .mistake-source {
+            color: #888;
+            font-size: 0.8rem;
+            margin-top: 3px;
+        }
+
+        .mistake-count {
+            background: #ff6b6b;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .mistake-actions {
+            display: flex;
+            gap: 8px;
+            margin-left: 10px;
+        }
+
+        .mistake-actions button {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.3s;
+        }
+
+        .btn-practice {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-practice:hover {
+            background: #5a6fd6;
+        }
+
+        .btn-mastered {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-mastered:hover {
+            background: #45a049;
+        }
+
+        .btn-speak-action {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            color: white;
+        }
+
+        .btn-speak-action:hover {
+            transform: scale(1.05);
+            box-shadow: 0 3px 10px rgba(255, 107, 107, 0.4);
+        }
+
+        .btn-speak {
+            position: absolute;
+            bottom: -5px;
+            right: -5px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            border: 2px solid white;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: all 0.2s;
+        }
+
+        .btn-speak:hover {
+            transform: scale(1.2);
+        }
+
+        /* 按钮 */
+        .btn {
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #666;
+        }
+
+        .btn-secondary:hover {
+            background: #d0d0d0;
+        }
+
+        /* AI生成区域 */
+        .ai-options {
+            margin-top: 15px;
+        }
+
+        .option-group {
+            margin-bottom: 15px;
+        }
+
+        .option-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 600;
+        }
+
+        .option-select, .option-input {
+            width: 100%;
+            padding: 10px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-family: inherit;
+        }
+
+        .option-select:focus, .option-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        /* 生成的文章 */
+        .generated-article {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border-left: 4px solid #667eea;
+        }
+
+        .generated-article h4 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .generated-article p {
+            color: #555;
+            line-height: 1.8;
+            font-size: 1.1rem;
+        }
+
+        .highlight-target {
+            background: #FFD93D;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        /* 专项练习区域 */
+        .practice-area {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin-top: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            display: none;
+        }
+
+        .practice-area.active {
+            display: block;
+        }
+
+        .practice-question {
+            font-size: 4rem;
+            text-align: center;
+            margin: 30px 0;
+            color: #333;
+        }
+
+        .practice-options {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .practice-option {
+            padding: 20px;
+            font-size: 2rem;
+            border: 3px solid #e0e0e0;
+            border-radius: 12px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .practice-option:hover {
+            border-color: #667eea;
+            background: #f5f7ff;
+        }
+
+        .practice-option.correct {
+            border-color: #4CAF50;
+            background: #E8F5E9;
+        }
+
+        .practice-option.wrong {
+            border-color: #f44336;
+            background: #FFEBEE;
+        }
+
+        /* 标签 */
+        .tag {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            margin-left: 8px;
+        }
+
+        .tag-new {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .tag-practicing {
+            background: #FFD93D;
+            color: #333;
+        }
+
+        .tag-mastered {
+            background: #4CAF50;
+            color: white;
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+
+        .empty-icon {
+            font-size: 4rem;
+            margin-bottom: 15px;
+        }
+
+        /* 进度环 */
+        .progress-ring {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 10px;
+        }
+
+        .progress-ring circle {
+            fill: none;
+            stroke-width: 8;
+        }
+
+        .progress-ring .bg {
+            stroke: #e0e0e0;
+        }
+
+        .progress-ring .progress {
+            stroke: #667eea;
+            stroke-linecap: round;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+            transition: stroke-dashoffset 0.5s;
+        }
+
+        /* 隐藏 */
+        .hidden {
+            display: none !important;
+        }
+
+        /* 加载动画 */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 汉字图形展示弹窗 */
+        .char-visual-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+        }
+
+        .char-visual-content {
+            background: white;
+            border-radius: 30px;
+            padding: 40px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: popIn 0.3s ease;
+        }
+
+        @keyframes popIn {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .char-display {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .char-big {
+            font-size: 8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: inline-block;
+            position: relative;
+        }
+
+        .char-pinyin {
+            font-size: 2rem;
+            color: #667eea;
+            margin-top: 10px;
+        }
+
+        /* 形象化图形区域 */
+        .visual-section {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+
+        .visual-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .visual-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .visual-emoji {
+            font-size: 5rem;
+            animation: bounce 1s ease infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .visual-desc {
+            text-align: center;
+            color: #555;
+            line-height: 1.6;
+            font-size: 1rem;
+        }
+
+        /* 笔画展示 */
+        .stroke-section {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .stroke-canvas {
+            width: 200px;
+            height: 200px;
+            margin: 0 auto;
+            border: 3px solid #e0e0e0;
+            border-radius: 15px;
+            background: linear-gradient(to right, #f8f9fa 1px, transparent 1px),
+                        linear-gradient(to bottom, #f8f9fa 1px, transparent 1px);
+            background-size: 50% 50%;
+            position: relative;
+        }
+
+        .stroke-char {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 120px;
+            color: #333;
+            font-family: "KaiTi", "楷体", "STKaiti", serif;
+            position: relative;
+        }
+
+        .stroke-char svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .stroke-path {
+            fill: none;
+            stroke: #667eea;
+            stroke-width: 8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+            animation: drawStroke 2s ease forwards;
+        }
+
+        @keyframes drawStroke {
+            to { stroke-dashoffset: 0; }
+        }
+
+        /* 象形解释 */
+        .etymology-section {
+            background: linear-gradient(135deg, #fff9e6 0%, #ffefc2 100%);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+
+        .etymology-content {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .etymology-ancient {
+            font-size: 4rem;
+            color: #8b6914;
+            font-family: "KaiTi", "楷体", serif;
+        }
+
+        .etymology-arrow {
+            font-size: 2rem;
+            color: #ccc;
+        }
+
+        .etymology-modern {
+            font-size: 4rem;
+            color: #333;
+        }
+
+        .etymology-text {
+            margin-top: 15px;
+            color: #666;
+            line-height: 1.6;
+            font-size: 0.95rem;
+        }
+
+        /* 联想记忆 */
+        .memory-section {
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+            border-radius: 20px;
+            padding: 25px;
+        }
+
+        .memory-title {
+            font-weight: 700;
+            color: #2e7d32;
+            margin-bottom: 10px;
+        }
+
+        .memory-content {
+            color: #388e3c;
+            line-height: 1.6;
+        }
+
+        /* 关闭按钮 */
+        .close-modal-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #f0f0f0;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .close-modal-btn:hover {
+            background: #e0e0e0;
+            transform: rotate(90deg);
+        }
+
+        /* 图形按钮 */
+        .btn-visual {
+            background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.8rem;
+            margin-left: 8px;
+            transition: all 0.3s;
+        }
+
+        .btn-visual:hover {
+            transform: scale(1.05);
+            box-shadow: 0 3px 10px rgba(156, 39, 176, 0.4);
+        }
+
+        /* 田字格 */
+        .tianzige {
+            width: 200px;
+            height: 200px;
+            margin: 0 auto;
+            border: 3px solid #667eea;
+            position: relative;
+            background: white;
+        }
+
+        .tianzige::before,
+        .tianzige::after {
+            content: '';
+            position: absolute;
+            background: #e0e0e0;
+        }
+
+        .tianzige::before {
+            width: 100%;
+            height: 1px;
+            top: 50%;
+            left: 0;
+        }
+
+        .tianzige::after {
+            width: 1px;
+            height: 100%;
+            top: 0;
+            left: 50%;
+        }
+
+        .tianzige .diagonal1,
+        .tianzige .diagonal2 {
+            position: absolute;
+            width: 141%;
+            height: 1px;
+            background: #e0e0e0;
+            top: 50%;
+            left: -20.5%;
+            transform-origin: center;
+        }
+
+        .tianzige .diagonal1 {
+            transform: rotate(45deg);
+        }
+
+        .tianzige .diagonal2 {
+            transform: rotate(-45deg);
+        }
+
+        .tianzige .char {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 120px;
+            font-family: "KaiTi", "楷体", "STKaiti", serif;
+            color: #333;
+            z-index: 10;
+        }
+
+        .tianzige-old {
+            width: 200px;
+            height: 200px;
+            margin: 0 auto;
+            border: 3px solid #667eea;
+            position: relative;
+            background: white;
+        }
+
+        .tianzigei::before,
+        .tianzigei::after {
+            content: '';
+            position: absolute;
+            background: #e0e0e0;
+        }
+
+        .tianzigei::before {
+            width: 100%;
+            height: 1px;
+            top: 50%;
+            left: 0;
+        }
+
+        .tianzigei::after {
+            width: 1px;
+            height: 100%;
+            top: 0;
+            left: 50%;
+        }
+
+        .tianzigei .diagonal1,
+        .tianzigei .diagonal2 {
+            position: absolute;
+            width: 141%;
+            height: 1px;
+            background: #e0e0e0;
+            top: 50%;
+            left: -20.5%;
+            transform-origin: center;
+        }
+
+        .tianzigei .diagonal1 {
+            transform: rotate(45deg);
+        }
+
+        .tianzigei .diagonal2 {
+            transform: rotate(-45deg);
+        }
+
+        .tianzigei .char {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 120px;
+            font-family: "KaiTi", "楷体", "STKaiti", serif;
+            color: #333;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="back-link">← 返回首页</a>
+
+    <div class="container">
+        <div class="header">
+            <h1>📝 错字本</h1>
+            <p>记录、练习、掌握每一个难字</p>
+        </div>
+
+        <!-- 统计 -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="totalMistakes">0</div>
+                <div class="stat-label">总错字数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="newMistakes">0</div>
+                <div class="stat-label">新错字</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="practicing">0</div>
+                <div class="stat-label">练习中</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="masteredCount">0</div>
+                <div class="stat-label">已掌握</div>
+            </div>
+        </div>
+
+        <!-- 功能区域 -->
+        <div class="feature-grid">
+            <!-- 错字列表 -->
+            <div class="feature-card" style="grid-column: span 2;">
+                <div class="feature-title">
+                    📚 我的错字
+                    <span class="tag tag-new" id="newBadge" style="display: none;">NEW</span>
+                    <div style="margin-left: auto; display: flex; gap: 8px;">
+                        <button onclick="refreshMistakes()" style="padding: 6px 12px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.85rem;">🔄 刷新</button>
+                        <button onclick="clearAllMistakes()" style="padding: 6px 12px; background: #ff6b6b; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.85rem;">🗑️ 清空</button>
+                    </div>
+                </div>
+                <div class="mistake-list" id="mistakeList">
+                    <div class="empty-state">
+                        <div class="empty-icon">🎉</div>
+                        <p>太棒了！还没有错字</p>
+                        <p style="font-size: 0.9rem; margin-top: 10px;">去阅读页面朗读文章吧</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI生成文章 -->
+            <div class="feature-card">
+                <div class="feature-title">🤖 AI生成练习文章</div>
+                <div class="ai-options">
+                    <div class="option-group">
+                        <label class="option-label">选择要练习的字</label>
+                        <select class="option-select" id="targetChar">
+                            <option value="">-- 选择错字 --</option>
+                        </select>
+                    </div>
+                    <div class="option-group">
+                        <label class="option-label">文章主题</label>
+                        <select class="option-select" id="articleTheme">
+                            <option value="动物">可爱的小动物</option>
+                            <option value="自然">美丽的大自然</option>
+                            <option value="家庭">温暖的家庭</option>
+                            <option value="学校">快乐的学校生活</option>
+                            <option value="童话">有趣的童话故事</option>
+                            <option value="科幻">神奇的科幻世界</option>
+                        </select>
+                    </div>
+                    <div class="option-group">
+                        <label class="option-label">文章长度</label>
+                        <select class="option-select" id="articleLength">
+                            <option value="short">简短（50字）</option>
+                            <option value="medium" selected>适中（100字）</option>
+                            <option value="long">较长（200字）</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="generateAIArticle()" style="width: 100%;">
+                        ✨ 生成文章
+                    </button>
+                </div>
+                <div class="generated-article hidden" id="generatedArticle">
+                    <h4 id="generatedTitle"></h4>
+                    <p id="generatedContent"></p>
+                    <button class="btn btn-secondary" onclick="goToReadArticle()" style="margin-top: 15px;">
+                        📖 去朗读这篇文章
+                    </button>
+                </div>
+            </div>
+
+            <!-- 专项练习 -->
+            <div class="feature-card">
+                <div class="feature-title">🎯 专项练习</div>
+                <p style="color: #666; margin-bottom: 15px;">针对错字生成认字练习</p>
+                <button class="btn btn-primary" onclick="startMistakePractice()" style="width: 100%; margin-bottom: 10px;">
+                    🎮 开始练习
+                </button>
+                <button class="btn btn-secondary" onclick="startPinyinPractice()" style="width: 100%;">
+                    🔤 拼音练习
+                </button>
+            </div>
+        </div>
+
+        <!-- 专项练习区域 -->
+        <div class="practice-area" id="practiceArea">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 id="practiceTitle">认字练习</h3>
+                <button class="btn btn-secondary" onclick="closePractice()">关闭</button>
+            </div>
+            <div class="progress-bar" style="margin-bottom: 20px;">
+                <div class="progress-fill" id="practiceProgress" style="width: 0%; height: 8px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 4px; transition: width 0.3s;"></div>
+            </div>
+            <div class="practice-question" id="practiceQuestion">?</div>
+            <div class="practice-options" id="practiceOptions"></div>
+            <div id="practiceResult" style="text-align: center; margin-top: 20px;"></div>
+        </div>
+    </div>
+
+    <script src="mistakes.js"></script>
+</body>
+</html>

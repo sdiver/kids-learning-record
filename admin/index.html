@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学习记录后台管理</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- 密码验证脚本 -->
+    <script>
+        // 检查是否已经通过密码验证
+        (function() {
+            const isAuthenticated = sessionStorage.getItem('adminAuthenticated');
+            if (!isAuthenticated) {
+                // 显示密码验证层
+                document.addEventListener('DOMContentLoaded', function() {
+                    document.getElementById('passwordOverlay').style.display = 'flex';
+                    document.getElementById('adminContent').style.display = 'none';
+                });
+            }
+        })();
+
+        function checkPassword() {
+            const input = document.getElementById('adminPassword').value;
+            if (input === '123456') {
+                sessionStorage.setItem('adminAuthenticated', 'true');
+                document.getElementById('passwordOverlay').style.display = 'none';
+                document.getElementById('adminContent').style.display = 'block';
+            } else {
+                document.getElementById('passwordError').textContent = '密码错误，请重试';
+                document.getElementById('adminPassword').value = '';
+                document.getElementById('adminPassword').focus();
+            }
+        }
+
+        function handlePasswordKeypress(e) {
+            if (e.key === 'Enter') {
+                checkPassword();
+            }
+        }
+    </script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Nunito', 'Microsoft YaHei', sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+        }
+
+        /* 侧边栏 */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 250px;
+            height: 100vh;
+            background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+            padding: 30px 0;
+            z-index: 100;
+        }
+
+        .logo {
+            text-align: center;
+            padding: 0 20px 30px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .logo h1 {
+            color: white;
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+        }
+
+        .logo p {
+            color: rgba(255,255,255,0.7);
+            font-size: 0.85rem;
+        }
+
+        .nav-menu {
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            padding: 15px 25px;
+            color: rgba(255,255,255,0.8);
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+
+        .nav-item i {
+            font-size: 1.2rem;
+        }
+
+        /* 主内容区 */
+        .main-content {
+            margin-left: 250px;
+            padding: 30px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .header h2 {
+            font-size: 1.8rem;
+            color: #333;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 15px;
+        }
+
+        /* 统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            transition: transform 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
+        }
+
+        .stat-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+        }
+
+        .stat-icon.blue { background: #e3f2fd; }
+        .stat-icon.green { background: #e8f5e9; }
+        .stat-icon.orange { background: #fff3e0; }
+        .stat-icon.purple { background: #f3e5f5; }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        /* 内容卡片 */
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 25px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #333;
+        }
+
+        /* 按钮 */
+        .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #666;
+        }
+
+        .btn-secondary:hover {
+            background: #d0d0d0;
+        }
+
+        .btn-danger {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #ff5252;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 0.8rem;
+        }
+
+        /* 表格 */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        .data-table th {
+            font-weight: 600;
+            color: #666;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+        }
+
+        .data-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .data-table td {
+            color: #333;
+        }
+
+        /* 标签 */
+        .tag {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .tag-success {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .tag-info {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .tag-warning {
+            background: #fff3e0;
+            color: #e65100;
+        }
+
+        /* 模态框 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 25px;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+            font-family: inherit;
+        }
+
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 25px;
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #888;
+        }
+
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 15px;
+        }
+
+        /* 隐藏 */
+        .hidden {
+            display: none !important;
+        }
+
+        /* 选项卡 */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        .tab:hover {
+            background: #f0f0f0;
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* 星星评分 */
+        .star-rating {
+            display: flex;
+            gap: 5px;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .star {
+            color: #ddd;
+            transition: color 0.2s;
+        }
+
+        .star.active {
+            color: #FFD700;
+        }
+
+        /* 头像 */
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: white;
+        }
+
+        /* 加载动画 */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 通知 */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 10px;
+            color: white;
+            font-weight: 600;
+            z-index: 1001;
+            animation: slideIn 0.3s ease;
+        }
+
+        .toast.success { background: #4caf50; }
+        .toast.error { background: #f44336; }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* 密码验证层 */
+        .password-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .password-box {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            animation: popIn 0.3s ease;
+        }
+
+        @keyframes popIn {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .password-box .lock-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+
+        .password-box h2 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .password-box p {
+            color: #888;
+            margin-bottom: 25px;
+        }
+
+        .password-input {
+            width: 100%;
+            padding: 15px 20px;
+            font-size: 1.2rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 15px;
+            transition: border-color 0.3s;
+        }
+
+        .password-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .password-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .password-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .password-error {
+            color: #f44336;
+            font-size: 0.9rem;
+            margin-top: 10px;
+            min-height: 20px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 密码验证层 -->
+    <div class="password-overlay" id="passwordOverlay">
+        <div class="password-box">
+            <div class="lock-icon">🔒</div>
+            <h2>后台管理登录</h2>
+            <p>请输入密码进入管理后台</p>
+            <input type="password" class="password-input" id="adminPassword" placeholder="请输入密码" onkeypress="handlePasswordKeypress(event)">
+            <button class="password-btn" onclick="checkPassword()">进入后台</button>
+            <div class="password-error" id="passwordError"></div>
+        </div>
+    </div>
+
+    <!-- 后台内容 -->
+    <div id="adminContent">
+    <!-- 侧边栏 -->
+    <div class="sidebar">
+        <div class="logo">
+            <h1>📚 学习记录</h1>
+            <p>后台管理系统</p>
+        </div>
+        <div class="nav-menu">
+            <div class="nav-item active" data-page="dashboard">
+                <span>📊</span> 数据概览
+            </div>
+            <div class="nav-item" data-page="kids">
+                <span>👶</span> 小朋友管理
+            </div>
+            <div class="nav-item" data-page="records">
+                <span>📝</span> 学习记录
+            </div>
+            <div class="nav-item" data-page="subjects">
+                <span>📖</span> 科目管理
+            </div>
+            <div class="nav-item" data-page="achievements">
+                <span>🏆</span> 成就管理
+            </div>
+            <div class="nav-item" data-page="points">
+                <span>💎</span> 积分记录
+            </div>
+            <div class="nav-item" onclick="window.location.href='/mistakes.html'">
+                <span>📝</span> 错字本
+            </div>
+            <div class="nav-item" onclick="window.location.href='/practice.html'">
+                <span>🎯</span> 去练习
+            </div>
+            <div class="nav-item" onclick="window.location.href='/reading.html'">
+                <span>📖</span> 去阅读
+            </div>
+            <div class="nav-item" onclick="window.location.href='/'">
+                <span>🏠</span> 返回前台
+            </div>
+        </div>
+    </div>
+
+    <!-- 主内容区 -->
+    <div class="main-content">
+        <!-- 数据概览页面 -->
+        <div id="page-dashboard" class="page">
+            <div class="header">
+                <h2>数据概览</h2>
+                <div class="header-actions">
+                    <button class="btn btn-secondary" onclick="refreshData()">🔄 刷新</button>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon blue">👶</div>
+                    <div class="stat-value" id="totalKids">-</div>
+                    <div class="stat-label">小朋友总数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon green">📝</div>
+                    <div class="stat-value" id="totalRecords">-</div>
+                    <div class="stat-label">学习记录总数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon orange">⏱️</div>
+                    <div class="stat-value" id="totalMinutes">-</div>
+                    <div class="stat-label">总学习时长(分钟)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon purple">🏆</div>
+                    <div class="stat-value" id="totalAchievements">-</div>
+                    <div class="stat-label">成就总数</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">📈 最近学习记录</h3>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>小朋友</th>
+                            <th>科目</th>
+                            <th>日期</th>
+                            <th>时长</th>
+                            <th>表现</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recentRecords">
+                        <!-- 动态生成 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 小朋友管理页面 -->
+        <div id="page-kids" class="page hidden">
+            <div class="header">
+                <h2>小朋友管理</h2>
+                <div class="header-actions">
+                    <button class="btn btn-primary" onclick="showKidModal()">+ 添加小朋友</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>姓名</th>
+                            <th>昵称</th>
+                            <th>年级</th>
+                            <th>记录数</th>
+                            <th>总积分</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="kidsTable">
+                        <!-- 动态生成 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 学习记录页面 -->
+        <div id="page-records" class="page hidden">
+            <div class="header">
+                <h2>学习记录</h2>
+                <div class="header-actions">
+                    <select class="form-select" id="filterKid" style="width: 150px;" onchange="loadRecords()">
+                        <option value="">所有小朋友</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="showRecordModal()">+ 添加记录</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>小朋友</th>
+                            <th>科目</th>
+                            <th>日期</th>
+                            <th>时长</th>
+                            <th>内容</th>
+                            <th>表现</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recordsTable">
+                        <!-- 动态生成 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 科目管理页面 -->
+        <div id="page-subjects" class="page hidden">
+            <div class="header">
+                <h2>科目管理</h2>
+                <div class="header-actions">
+                    <button class="btn btn-primary" onclick="showSubjectModal()">+ 添加科目</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>图标</th>
+                            <th>名称</th>
+                            <th>颜色</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="subjectsTable">
+                        <!-- 动态生成 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 成就管理页面 -->
+        <div id="page-achievements" class="page hidden">
+            <div class="header">
+                <h2>成就管理</h2>
+                <div class="header-actions">
+                    <select class="form-select" id="filterAchievementKid" style="width: 150px;" onchange="loadAchievements()">
+                        <option value="">所有小朋友</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="showAchievementModal()">+ 添加成就</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>小朋友</th>
+                            <th>徽章</th>
+                            <th>成就名称</th>
+                            <th>描述</th>
+                            <th>获得日期</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="achievementsTable">
+                        <!-- 动态生成 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 积分记录页面 -->
+        <div id="page-points" class="page hidden">
+            <div class="header">
+                <h2>积分记录</h2>
+                <div class="header-actions">
+                    <select class="form-select" id="filterPointsKid" style="width: 150px;" onchange="loadPoints()">
+                        <option value="">所有小朋友</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="showPointsModal()">+ 调整积分</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>小朋友</th>
+                            <th>类型</th>
+                            <th>积分</th>
+                            <th>原因</th>
+                            <th>时间</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pointsTable">
+                        <!-- 动态生成 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加/编辑小朋友模态框 -->
+    <div class="modal" id="kidModal">
+        <div class="modal-content">
+            <h3 class="modal-title" id="kidModalTitle">添加小朋友</h3>
+            <input type="hidden" id="kidId">
+            <div class="form-group">
+                <label class="form-label">姓名 *</label>
+                <input type="text" class="form-input" id="kidName" placeholder="输入姓名">
+            </div>
+            <div class="form-group">
+                <label class="form-label">昵称</label>
+                <input type="text" class="form-input" id="kidNickname" placeholder="输入昵称">
+            </div>
+            <div class="form-group">
+                <label class="form-label">出生日期</label>
+                <input type="date" class="form-input" id="kidBirthDate">
+            </div>
+            <div class="form-group">
+                <label class="form-label">年级</label>
+                <select class="form-select" id="kidGrade">
+                    <option value="">请选择</option>
+                    <option value="幼儿园小班">幼儿园小班</option>
+                    <option value="幼儿园中班">幼儿园中班</option>
+                    <option value="幼儿园大班">幼儿园大班</option>
+                    <option value="一年级">一年级</option>
+                    <option value="二年级">二年级</option>
+                    <option value="三年级">三年级</option>
+                    <option value="四年级">四年级</option>
+                    <option value="五年级">五年级</option>
+                    <option value="六年级">六年级</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">喜欢的颜色</label>
+                <input type="color" class="form-input" id="kidColor" value="#FFD93D">
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-secondary" onclick="closeModal('kidModal')">取消</button>
+                <button class="btn btn-primary" onclick="saveKid()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加学习记录模态框 -->
+    <div class="modal" id="recordModal">
+        <div class="modal-content">
+            <h3 class="modal-title">添加学习记录</h3>
+            <div class="form-group">
+                <label class="form-label">小朋友 *</label>
+                <select class="form-select" id="recordKidId">
+                    <option value="">请选择</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">科目 *</label>
+                <select class="form-select" id="recordSubjectId">
+                    <option value="">请选择</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">学习日期 *</label>
+                <input type="date" class="form-input" id="recordDate">
+            </div>
+            <div class="form-group">
+                <label class="form-label">学习时长（分钟）*</label>
+                <input type="number" class="form-input" id="recordDuration" min="1" max="300" placeholder="例如：30">
+            </div>
+            <div class="form-group">
+                <label class="form-label">学习内容 *</label>
+                <textarea class="form-textarea" id="recordContent" placeholder="今天学习了什么？"></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label">表现评分</label>
+                <div class="star-rating" id="recordRating">
+                    <span class="star active" data-star="1">⭐</span>
+                    <span class="star active" data-star="2">⭐</span>
+                    <span class="star active" data-star="3">⭐</span>
+                    <span class="star" data-star="4">⭐</span>
+                    <span class="star" data-star="5">⭐</span>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">心情</label>
+                <select class="form-select" id="recordMood">
+                    <option value="😊">😊 开心</option>
+                    <option value="😄">😄 很高兴</option>
+                    <option value="🤔">🤔 有点难</option>
+                    <option value="💪">💪 有挑战</option>
+                    <option value="🥰">🥰 超喜欢</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">备注</label>
+                <textarea class="form-textarea" id="recordNotes" placeholder="家长/老师评语"></textarea>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-secondary" onclick="closeModal('recordModal')">取消</button>
+                <button class="btn btn-primary" onclick="saveRecord()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加科目模态框 -->
+    <div class="modal" id="subjectModal">
+        <div class="modal-content">
+            <h3 class="modal-title">添加科目</h3>
+            <div class="form-group">
+                <label class="form-label">科目名称 *</label>
+                <input type="text" class="form-input" id="subjectName" placeholder="例如：语文">
+            </div>
+            <div class="form-group">
+                <label class="form-label">图标</label>
+                <input type="text" class="form-input" id="subjectIcon" placeholder="例如：📚">
+            </div>
+            <div class="form-group">
+                <label class="form-label">颜色</label>
+                <input type="color" class="form-input" id="subjectColor" value="#4ECDC4">
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-secondary" onclick="closeModal('subjectModal')">取消</button>
+                <button class="btn btn-primary" onclick="saveSubject()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加成就模态框 -->
+    <div class="modal" id="achievementModal">
+        <div class="modal-content">
+            <h3 class="modal-title">添加成就</h3>
+            <div class="form-group">
+                <label class="form-label">小朋友 *</label>
+                <select class="form-select" id="achievementKidId">
+                    <option value="">请选择</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">成就名称 *</label>
+                <input type="text" class="form-input" id="achievementTitle" placeholder="例如：学习小达人">
+            </div>
+            <div class="form-group">
+                <label class="form-label">描述</label>
+                <textarea class="form-textarea" id="achievementDesc" placeholder="成就描述"></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label">徽章图标</label>
+                <input type="text" class="form-input" id="achievementIcon" placeholder="例如：🏆">
+            </div>
+            <div class="form-group">
+                <label class="form-label">获得日期</label>
+                <input type="date" class="form-input" id="achievementDate">
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-secondary" onclick="closeModal('achievementModal')">取消</button>
+                <button class="btn btn-primary" onclick="saveAchievement()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 调整积分模态框 -->
+    <div class="modal" id="pointsModal">
+        <div class="modal-content">
+            <h3 class="modal-title">调整积分</h3>
+            <div class="form-group">
+                <label class="form-label">小朋友 *</label>
+                <select class="form-select" id="pointsKidId">
+                    <option value="">请选择</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">类型 *</label>
+                <select class="form-select" id="pointsType">
+                    <option value="earn">获得</option>
+                    <option value="spend">消耗</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">积分 *</label>
+                <input type="number" class="form-input" id="pointsValue" placeholder="例如：10">
+            </div>
+            <div class="form-group">
+                <label class="form-label">原因</label>
+                <input type="text" class="form-input" id="pointsReason" placeholder="例如：完成学习任务">
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-secondary" onclick="closeModal('pointsModal')">取消</button>
+                <button class="btn btn-primary" onclick="savePoints()">保存</button>
+            </div>
+        </div>
+    </div>
+    </div>
+
+    <script src="admin.js"></script>
+</body>
+</html>
