@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  parenting:
+    # 本地构建时使用 build，生产环境使用 image
+    # build: .
+    image: your-dockerhub-username/parenting-app:latest
+    container_name: parenting-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      # 将数据库持久化到本地，避免容器重启数据丢失
+      - ./data:/app/data
+      # 备份数据库文件
+      - ./kids_learning.db:/app/kids_learning.db
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    networks:
+      - parenting-network
+
+  # Watchtower - 自动更新容器（当镜像更新时）
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      # 每 5 分钟检查一次更新
+      - WATCHTOWER_POLL_INTERVAL=300
+      # 清理旧镜像
+      - WATCHTOWER_CLEANUP=true
+      # 只监控特定容器
+      - WATCHTOWER_MONITOR_ONLY=true
+      # 时区设置
+      - TZ=Asia/Shanghai
+    command: parenting-app
+    networks:
+      - parenting-network
+
+networks:
+  parenting-network:
+    driver: bridge
