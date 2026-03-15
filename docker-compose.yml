@@ -4,7 +4,7 @@ services:
   parenting:
     # 本地构建时使用 build，生产环境使用 image
     # build: .
-    image: your-dockerhub-username/parenting-app:latest
+    image: ghcr.io/sdiver/kids-learning-record:latest
     container_name: parenting-app
     restart: unless-stopped
     ports:
