@@ -422,9 +422,9 @@
     </style>
 </head>
 <body>
-    <a href="/" class="back-link">← 返回首页</a>
-    <a href="/mistakes.html" style="position:fixed;top:20px;right:20px;background:linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);padding:10px 20px;border-radius:20px;text-decoration:none;color:white;font-weight:600;box-shadow:0 2px 10px rgba(0,0,0,0.1);z-index:100;">📝 错字本</a>
-    <a href="/reading.html" style="position:fixed;top:20px;right:140px;background:linear-gradient(135deg, #4ECDC4 0%, #44a08d 100%);padding:10px 20px;border-radius:20px;text-decoration:none;color:white;font-weight:600;box-shadow:0 2px 10px rgba(0,0,0,0.1);z-index:100;">📖 去阅读</a>
+    <a href="/" class="back-link" id="homeLink">← 返回首页</a>
+    <a href="/mistakes.html" id="mistakesLink" style="position:fixed;top:20px;right:20px;background:linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);padding:10px 20px;border-radius:20px;text-decoration:none;color:white;font-weight:600;box-shadow:0 2px 10px rgba(0,0,0,0.1);z-index:100;">📝 错字本</a>
+    <a href="/reading.html" id="readingLink" style="position:fixed;top:20px;right:140px;background:linear-gradient(135deg, #4ECDC4 0%, #44a08d 100%);padding:10px 20px;border-radius:20px;text-decoration:none;color:white;font-weight:600;box-shadow:0 2px 10px rgba(0,0,0,0.1);z-index:100;">📖 去阅读</a>
 
     <div class="container">
         <!-- 头部 -->
@@ -517,6 +517,19 @@
         </div>
     </div>
 
+    <script>
+        // 基础路径检测 - 根据当前URL自动计算
+        const pathParts = window.location.pathname.split('/');
+        const appIndex = pathParts.indexOf('app');
+        const BASE_PATH = appIndex >= 0 ? '/' + pathParts.slice(1, appIndex + 2).join('/') : '';
+
+        // 更新页面链接以适配代理路径
+        if (BASE_PATH) {
+            document.getElementById('homeLink').href = BASE_PATH + '/';
+            document.getElementById('mistakesLink').href = BASE_PATH + '/mistakes.html';
+            document.getElementById('readingLink').href = BASE_PATH + '/reading.html';
+        }
+    </script>
     <script src="practice.js"></script>
 </body>
 </html>

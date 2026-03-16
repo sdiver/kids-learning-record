@@ -716,8 +716,21 @@
     <a href="/admin" style="position:fixed;bottom:30px;left:30px;background:rgba(255,255,255,0.9);backdrop-filter:blur(10px);padding:12px 20px;border-radius:30px;text-decoration:none;color:#667eea;font-weight:600;box-shadow:0 4px 15px rgba(0,0,0,0.1);z-index:100;transition:all 0.3s;display:flex;align-items:center;gap:8px;font-size:0.9rem;border:2px solid rgba(102,126,234,0.2);" onmouseover="this.style.transform='scale(1.05)';this.style.borderColor='rgba(102,126,234,0.5)'" onmouseout="this.style.transform='scale(1)';this.style.borderColor='rgba(102,126,234,0.2)'">🔧 后台管理</a>
 
     <script>
-        // API基础URL
-        const API_BASE = '/api';
+        // 基础路径检测 - 根据当前URL自动计算
+        const pathParts = window.location.pathname.split('/');
+        const appIndex = pathParts.indexOf('app');
+        const BASE_PATH = appIndex >= 0 ? '/' + pathParts.slice(1, appIndex + 2).join('/') : '';
+        const API_BASE = BASE_PATH + '/api';
+
+        // 更新页面链接以适配代理路径
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('a[href^="/"]').forEach(link => {
+                const href = link.getAttribute('href');
+                if (href.startsWith('/') && !href.startsWith(BASE_PATH)) {
+                    link.href = BASE_PATH + href;
+                }
+            });
+        });
 
         // 当前选中的小朋友
         let currentKid = null;

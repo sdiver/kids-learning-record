@@ -9,8 +9,16 @@ const PORT = process.env.PORT || 3000;
 // 中间件
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
-app.use('/admin', express.static('admin'));
+
+// 支持代理路径和直接访问两种方式
+const basePath = process.env.BASE_PATH || '';
+
+// 静态文件服务 - 支持两种路径
+app.use(basePath + '/', express.static('public'));
+app.use(basePath + '/admin', express.static('admin'));
+
+// API 路由 - 支持两种路径
+const apiRouter = express.Router();
 
 // SQLite 数据库连接
 const db = new sqlite3.Database('./kids_learning.db');
@@ -113,14 +121,14 @@ db.serialize(() => {
 });
 
 // 数据库连接测试
-app.get('/api/health', (req, res) => {
+apiRouter.get('/health', (req, res) => {
     res.json({ status: 'OK', message: '数据库连接正常' });
 });
 
 // ==================== 小朋友管理 API ====================
 
 // 获取所有小朋友
-app.get('/api/kids', (req, res) => {
+apiRouter.get('/kids', (req, res) => {
     db.all('SELECT * FROM kids ORDER BY created_at DESC', (err, rows) => {
         if (err) return res.status(500).json({ success: false, message: err.message });
         res.json({ success: true, data: rows });
@@ -128,7 +136,7 @@ app.get('/api/kids', (req, res) => {
 });
 
 // 获取单个小朋友
-app.get('/api/kids/:id', (req, res) => {
+apiRouter.get('/kids/:id', (req, res) => {
     db.get('SELECT * FROM kids WHERE id = ?', [req.params.id], (err, row) => {
         if (err) return res.status(500).json({ success: false, message: err.message });
         if (!row) return res.status(404).json({ success: false, message: '小朋友不存在' });
@@ -137,7 +145,7 @@ app.get('/api/kids/:id', (req, res) => {
 });
 
 // 添加小朋友
-app.post('/api/kids', (req, res) => {
+apiRouter.post('/kids', (req, res) => {
     const { name, nickname, birth_date, grade, favorite_color } = req.body;
     db.run(
         'INSERT INTO kids (name, nickname, birth_date, grade, favorite_color) VALUES (?, ?, ?, ?, ?)',
@@ -150,7 +158,7 @@ app.post('/api/kids', (req, res) => {
 });
 
 // 更新小朋友
-app.put('/api/kids/:id', (req, res) => {
+apiRouter.put('/kids/:id', (req, res) => {
     const { name, nickname, birth_date, grade, favorite_color } = req.body;
     db.run(
         'UPDATE kids SET name = ?, nickname = ?, birth_date = ?, grade = ?, favorite_color = ? WHERE id = ?',
@@ -163,7 +171,7 @@ app.put('/api/kids/:id', (req, res) => {
 });
 
 // 删除小朋友
-app.delete('/api/kids/:id', (req, res) => {
+apiRouter.delete('/kids/:id', (req, res) => {
     db.run('DELETE FROM kids WHERE id = ?', [req.params.id], (err) => {
         if (err) return res.status(500).json({ success: false, message: err.message });
         res.json({ success: true, message: '删除成功' });
@@ -173,7 +181,7 @@ app.delete('/api/kids/:id', (req, res) => {
 // ==================== 学习记录 API ====================
 
 // 获取学习记录列表
-app.get('/api/records', (req, res) => {
+apiRouter.get('/records', (req, res) => {
     const { kid_id, date, limit = 50 } = req.query;
     let sql = `
         SELECT lr.*, k.name as kid_name, s.name as subject_name, s.icon as subject_icon, s.color as subject_color
@@ -203,7 +211,7 @@ app.get('/api/records', (req, res) => {
 });
 
 // 添加学习记录
-app.post('/api/records', (req, res) => {
+apiRouter.post('/records', (req, res) => {
     const { kid_id, subject_id, learning_date, duration, content, performance, mood, notes } = req.body;
 
     db.run(
@@ -226,7 +234,7 @@ app.post('/api/records', (req, res) => {
 });
 
 // 删除学习记录
-app.delete('/api/records/:id', (req, res) => {
+apiRouter.delete('/records/:id', (req, res) => {
     db.run('DELETE FROM learning_records WHERE id = ?', [req.params.id], (err) => {
         if (err) return res.status(500).json({ success: false, message: err.message });
         res.json({ success: true, message: '删除成功' });
@@ -236,7 +244,7 @@ app.delete('/api/records/:id', (req, res) => {
 // ==================== 科目管理 API ====================
 
 // 获取所有科目
-app.get('/api/subjects', (req, res) => {
+apiRouter.get('/subjects', (req, res) => {
     db.all('SELECT * FROM subjects ORDER BY sort_order', (err, rows) => {
         if (err) return res.status(500).json({ success: false, message: err.message });
         res.json({ success: true, data: rows });
@@ -244,7 +252,7 @@ app.get('/api/subjects', (req, res) => {
 });
 
 // 添加科目
-app.post('/api/subjects', (req, res) => {
+apiRouter.post('/subjects', (req, res) => {
     const { name, icon, color } = req.body;
     db.run(
         'INSERT INTO subjects (name, icon, color) VALUES (?, ?, ?)',
@@ -257,7 +265,7 @@ app.post('/api/subjects', (req, res) => {
 });
 
 // 删除科目
-app.delete('/api/subjects/:id', (req, res) => {
+apiRouter.delete('/subjects/:id', (req, res) => {
     db.run('DELETE FROM subjects WHERE id = ?', [req.params.id], (err) => {
         if (err) return res.status(500).json({ success: false, message: err.message });
         res.json({ success: true, message: '删除成功' });
@@ -267,7 +275,7 @@ app.delete('/api/subjects/:id', (req, res) => {
 // ==================== 成就管理 API ====================
 
 // 获取成就列表
-app.get('/api/achievements', (req, res) => {
+apiRouter.get('/achievements', (req, res) => {
     const { kid_id } = req.query;
     let sql = 'SELECT * FROM achievements WHERE 1=1';
     const params = [];
@@ -286,7 +294,7 @@ app.get('/api/achievements', (req, res) => {
 });
 
 // 添加成就
-app.post('/api/achievements', (req, res) => {
+apiRouter.post('/achievements', (req, res) => {
     const { kid_id, title, description, badge_icon, earned_at } = req.body;
 
     db.run(
@@ -307,7 +315,7 @@ app.post('/api/achievements', (req, res) => {
 });
 
 // 删除成就
-app.delete('/api/achievements/:id', (req, res) => {
+apiRouter.delete('/achievements/:id', (req, res) => {
     db.run('DELETE FROM achievements WHERE id = ?', [req.params.id], (err) => {
         if (err) return res.status(500).json({ success: false, message: err.message });
         res.json({ success: true, message: '删除成功' });
@@ -317,7 +325,7 @@ app.delete('/api/achievements/:id', (req, res) => {
 // ==================== 积分管理 API ====================
 
 // 获取积分记录
-app.get('/api/points', (req, res) => {
+apiRouter.get('/points', (req, res) => {
     const { kid_id } = req.query;
     let sql = `
         SELECT p.*, k.name as kid_name
@@ -341,7 +349,7 @@ app.get('/api/points', (req, res) => {
 });
 
 // 添加积分记录
-app.post('/api/points', (req, res) => {
+apiRouter.post('/points', (req, res) => {
     const { kid_id, points, reason, record_type } = req.body;
 
     const finalPoints = record_type === 'spend' ? -Math.abs(points) : points;
@@ -359,7 +367,7 @@ app.post('/api/points', (req, res) => {
 // ==================== 统计数据 API ====================
 
 // 获取小朋友学习统计
-app.get('/api/stats/:kid_id', (req, res) => {
+apiRouter.get('/stats/:kid_id', (req, res) => {
     const kidId = req.params.kid_id;
 
     db.get(
@@ -386,11 +394,22 @@ app.get('/api/stats/:kid_id', (req, res) => {
     );
 });
 
+// 挂载 API 路由到 /api
+app.use('/api', apiRouter);
+
+// 支持代理路径 - 将 API 路由也挂载到 basePath
+if (basePath) {
+    app.use(basePath + '/api', apiRouter);
+}
+
 // 启动服务器
 app.listen(PORT, () => {
     console.log(`🚀 服务器运行在 http://localhost:${PORT}`);
     console.log(`📊 前台页面: http://localhost:${PORT}`);
     console.log(`🔧 后台管理: http://localhost:${PORT}/admin`);
+    if (basePath) {
+        console.log(`📁 代理路径: ${basePath}`);
+    }
 });
 
 module.exports = db;

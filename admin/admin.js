@@ -1,5 +1,13 @@
-// API 基础URL
-const API_BASE = 'http://localhost:3000/api';
+// API 基础URL - 根据当前路径自动检测
+const pathParts = window.location.pathname.split('/');
+const appIndex = pathParts.indexOf('app');
+const BASE_PATH = appIndex >= 0 ? '/' + pathParts.slice(1, appIndex + 2).join('/') : '';
+const API_BASE = BASE_PATH + '/api';
+
+// 页面跳转 - 适配代理路径
+function goToPage(page) {
+    window.location.href = BASE_PATH + '/' + page;
+}
 
 // 页面状态
 let currentPage = 'dashboard';

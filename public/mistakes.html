@@ -821,7 +821,7 @@
     </style>
 </head>
 <body>
-    <a href="/" class="back-link">← 返回首页</a>
+    <a href="/" class="back-link" id="homeLink">← 返回首页</a>
 
     <div class="container">
         <div class="header">
@@ -940,6 +940,17 @@
         </div>
     </div>
 
+    <script>
+        // 基础路径检测 - 根据当前URL自动计算
+        const pathParts = window.location.pathname.split('/');
+        const appIndex = pathParts.indexOf('app');
+        const BASE_PATH = appIndex >= 0 ? '/' + pathParts.slice(1, appIndex + 2).join('/') : '';
+
+        // 更新页面链接以适配代理路径
+        if (BASE_PATH) {
+            document.getElementById('homeLink').href = BASE_PATH + '/';
+        }
+    </script>
     <script src="mistakes.js"></script>
 </body>
 </html>

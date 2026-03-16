@@ -1,4 +1,10 @@
 // 智能阅读模块
+// API 基础URL - 根据当前路径自动检测
+const pathParts = window.location.pathname.split('/');
+const appIndex = pathParts.indexOf('app');
+const BASE_PATH = appIndex >= 0 ? '/' + pathParts.slice(1, appIndex + 2).join('/') : '';
+const API_BASE = BASE_PATH + '/api';
+
 let currentArticle = null;
 let charElements = [];
 let currentIndex = 0;
@@ -890,7 +896,7 @@ function saveReadingRecord() {
     const total = correctCount + wrongCount;
     const accuracy = total > 0 ? Math.round((correctCount / total) * 100) : 0;
 
-    fetch('/api/records', {
+    fetch(`${API_BASE}/records`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

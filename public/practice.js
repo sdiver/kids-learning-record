@@ -1,4 +1,10 @@
 // 练习模块
+// API 基础URL - 根据当前路径自动检测
+const pathParts = window.location.pathname.split('/');
+const appIndex = pathParts.indexOf('app');
+const BASE_PATH = appIndex >= 0 ? '/' + pathParts.slice(1, appIndex + 2).join('/') : '';
+const API_BASE = BASE_PATH + '/api';
+
 let currentType = 'pinyin';
 let currentDifficulty = 'easy';
 let currentQuestion = null;
@@ -296,7 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // 加载小朋友列表
 async function loadKids() {
     try {
-        const res = await fetch('/api/kids');
+        const res = await fetch(`${API_BASE}/kids`);
         const data = await res.json();
 
         if (data.success && data.data.length > 0) {
@@ -685,7 +691,7 @@ function savePracticeRecord(score) {
         english: 3  // 英语
     };
 
-    fetch('/api/records', {
+    fetch(`${API_BASE}/records`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

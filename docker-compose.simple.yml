@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  parenting:
+    build: .
+    image: parenting-app:latest
+    container_name: parenting-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      # 将数据库持久化到本地，避免容器重启数据丢失
+      - ./data:/app/data
+      # 备份数据库文件
+      - ./kids_learning.db:/app/kids_learning.db
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
