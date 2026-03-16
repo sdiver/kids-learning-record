@@ -245,6 +245,32 @@
             font-size: 0.8rem;
         }
 
+        /* 按钮 loading 状态 */
+        .btn.loading {
+            position: relative;
+            color: transparent !important;
+            pointer-events: none;
+        }
+
+        .btn.loading::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            top: 50%;
+            left: 50%;
+            margin-left: -8px;
+            margin-top: -8px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spinner 0.8s linear infinite;
+        }
+
+        @keyframes spinner {
+            to { transform: rotate(360deg); }
+        }
+
         /* 日历样式 */
         .calendar {
             width: 100%;
@@ -571,6 +597,7 @@
 
         .toast.success { background: #4caf50; }
         .toast.error { background: #f44336; }
+        .toast.warning { background: #ff9800; }
 
         @keyframes slideIn {
             from {

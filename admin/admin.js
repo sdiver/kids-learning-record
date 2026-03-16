@@ -4,6 +4,52 @@ const appIndex = pathParts.indexOf('app');
 const BASE_PATH = appIndex >= 0 ? '/' + pathParts.slice(1, appIndex + 2).join('/') : '';
 const API_BASE = BASE_PATH + '/api';
 
+// 提交锁 - 防止重复提交
+const submitLocks = new Map();
+
+// 显示 loading 状态
+function showButtonLoading(button) {
+    if (button) {
+        button.classList.add('loading');
+        button.disabled = true;
+    }
+}
+
+// 隐藏 loading 状态
+function hideButtonLoading(button) {
+    if (button) {
+        button.classList.remove('loading');
+        button.disabled = false;
+    }
+}
+
+// 带锁的异步函数执行器
+async function withSubmitLock(lockKey, asyncFn, errorHandler) {
+    if (submitLocks.has(lockKey)) {
+        showToast('正在处理中，请稍候...', 'warning');
+        return;
+    }
+
+    // 查找当前点击的按钮
+    const clickedButton = document.activeElement;
+    const isButton = clickedButton && clickedButton.tagName === 'BUTTON';
+    const button = isButton ? clickedButton : null;
+
+    submitLocks.set(lockKey, button);
+    showButtonLoading(button);
+
+    try {
+        await asyncFn();
+    } catch (error) {
+        console.error(`${lockKey} failed:`, error);
+        showToast('操作失败: ' + (error.message || '网络错误'), 'error');
+        if (errorHandler) errorHandler(error);
+    } finally {
+        submitLocks.delete(lockKey);
+        hideButtonLoading(button);
+    }
+}
+
 // 页面跳转 - 适配代理路径
 function goToPage(page) {
     window.location.href = BASE_PATH + '/' + page;
@@ -398,21 +444,21 @@ function showPointsModal() {
 // ==================== 保存操作 ====================
 
 async function saveKid() {
-    const id = document.getElementById('kidId').value;
-    const data = {
-        name: document.getElementById('kidName').value,
-        nickname: document.getElementById('kidNickname').value,
-        birth_date: document.getElementById('kidBirthDate').value,
-        grade: document.getElementById('kidGrade').value,
-        favorite_color: document.getElementById('kidColor').value
-    };
+    await withSubmitLock('saveKid', async () => {
+        const id = document.getElementById('kidId').value;
+        const data = {
+            name: document.getElementById('kidName').value,
+            nickname: document.getElementById('kidNickname').value,
+            birth_date: document.getElementById('kidBirthDate').value,
+            grade: document.getElementById('kidGrade').value,
+            favorite_color: document.getElementById('kidColor').value
+        };
 
-    if (!data.name) {
-        showToast('请输入姓名', 'error');
-        return;
-    }
+        if (!data.name) {
+            showToast('请输入姓名', 'error');
+            return;
+        }
 
-    try {
         const url = id ? `${API_BASE}/kids/${id}` : `${API_BASE}/kids`;
         const method = id ? 'PUT' : 'POST';
 
@@ -429,31 +475,29 @@ async function saveKid() {
             loadKids();
             loadKidsSelect();
         } else {
-            showToast(result.message, 'error');
+            showToast(result.message || '操作失败', 'error');
         }
-    } catch (error) {
-        showToast('操作失败', 'error');
-    }
+    }, () => showToast('操作失败', 'error'));
 }
 
 async function saveRecord() {
-    const data = {
-        kid_id: document.getElementById('recordKidId').value,
-        subject_id: document.getElementById('recordSubjectId').value,
-        learning_date: document.getElementById('recordDate').value,
-        duration: document.getElementById('recordDuration').value,
-        content: document.getElementById('recordContent').value,
-        performance: document.querySelectorAll('#recordRating .star.active').length,
-        mood: document.getElementById('recordMood').value,
-        notes: document.getElementById('recordNotes').value
-    };
+    await withSubmitLock('saveRecord', async () => {
+        const data = {
+            kid_id: document.getElementById('recordKidId').value,
+            subject_id: document.getElementById('recordSubjectId').value,
+            learning_date: document.getElementById('recordDate').value,
+            duration: document.getElementById('recordDuration').value,
+            content: document.getElementById('recordContent').value,
+            performance: document.querySelectorAll('#recordRating .star.active').length,
+            mood: document.getElementById('recordMood').value,
+            notes: document.getElementById('recordNotes').value
+        };
 
-    if (!data.kid_id || !data.subject_id || !data.duration || !data.content) {
-        showToast('请填写必填项', 'error');
-        return;
-    }
+        if (!data.kid_id || !data.subject_id || !data.duration || !data.content) {
+            showToast('请填写必填项', 'error');
+            return;
+        }
 
-    try {
         const res = await fetch(`${API_BASE}/records`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -470,26 +514,24 @@ async function saveRecord() {
             document.getElementById('recordContent').value = '';
             document.getElementById('recordNotes').value = '';
         } else {
-            showToast(result.message, 'error');
+            showToast(result.message || '保存失败', 'error');
         }
-    } catch (error) {
-        showToast('保存失败', 'error');
-    }
+    }, () => showToast('保存失败', 'error'));
 }
 
 async function saveSubject() {
-    const data = {
-        name: document.getElementById('subjectName').value,
-        icon: document.getElementById('subjectIcon').value,
-        color: document.getElementById('subjectColor').value
-    };
+    await withSubmitLock('saveSubject', async () => {
+        const data = {
+            name: document.getElementById('subjectName').value,
+            icon: document.getElementById('subjectIcon').value,
+            color: document.getElementById('subjectColor').value
+        };
 
-    if (!data.name) {
-        showToast('请输入科目名称', 'error');
-        return;
-    }
+        if (!data.name) {
+            showToast('请输入科目名称', 'error');
+            return;
+        }
 
-    try {
         const res = await fetch(`${API_BASE}/subjects`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -506,28 +548,26 @@ async function saveSubject() {
             document.getElementById('subjectName').value = '';
             document.getElementById('subjectIcon').value = '';
         } else {
-            showToast(result.message, 'error');
+            showToast(result.message || '保存失败', 'error');
         }
-    } catch (error) {
-        showToast('保存失败', 'error');
-    }
+    }, () => showToast('保存失败', 'error'));
 }
 
 async function saveAchievement() {
-    const data = {
-        kid_id: document.getElementById('achievementKidId').value,
-        title: document.getElementById('achievementTitle').value,
-        description: document.getElementById('achievementDesc').value,
-        badge_icon: document.getElementById('achievementIcon').value,
-        earned_at: document.getElementById('achievementDate').value
-    };
+    await withSubmitLock('saveAchievement', async () => {
+        const data = {
+            kid_id: document.getElementById('achievementKidId').value,
+            title: document.getElementById('achievementTitle').value,
+            description: document.getElementById('achievementDesc').value,
+            badge_icon: document.getElementById('achievementIcon').value,
+            earned_at: document.getElementById('achievementDate').value
+        };
 
-    if (!data.kid_id || !data.title) {
-        showToast('请填写必填项', 'error');
-        return;
-    }
+        if (!data.kid_id || !data.title) {
+            showToast('请填写必填项', 'error');
+            return;
+        }
 
-    try {
         const res = await fetch(`${API_BASE}/achievements`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -544,32 +584,30 @@ async function saveAchievement() {
             document.getElementById('achievementDesc').value = '';
             document.getElementById('achievementIcon').value = '';
         } else {
-            showToast(result.message, 'error');
+            showToast(result.message || '保存失败', 'error');
         }
-    } catch (error) {
-        showToast('保存失败', 'error');
-    }
+    }, () => showToast('保存失败', 'error'));
 }
 
 async function savePoints() {
-    const data = {
-        kid_id: document.getElementById('pointsKidId').value,
-        points: parseInt(document.getElementById('pointsValue').value),
-        reason: document.getElementById('pointsReason').value,
-        record_type: document.getElementById('pointsType').value
-    };
+    await withSubmitLock('savePoints', async () => {
+        const data = {
+            kid_id: document.getElementById('pointsKidId').value,
+            points: parseInt(document.getElementById('pointsValue').value),
+            reason: document.getElementById('pointsReason').value,
+            record_type: document.getElementById('pointsType').value
+        };
 
-    if (!data.kid_id || !data.points) {
-        showToast('请填写必填项', 'error');
-        return;
-    }
+        if (!data.kid_id || !data.points) {
+            showToast('请填写必填项', 'error');
+            return;
+        }
 
-    // 消耗积分时转为负数
-    if (data.record_type === 'spend') {
-        data.points = -Math.abs(data.points);
-    }
+        // 消耗积分时转为负数
+        if (data.record_type === 'spend') {
+            data.points = -Math.abs(data.points);
+        }
 
-    try {
         const res = await fetch(`${API_BASE}/points`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -585,11 +623,9 @@ async function savePoints() {
             document.getElementById('pointsValue').value = '';
             document.getElementById('pointsReason').value = '';
         } else {
-            showToast(result.message, 'error');
+            showToast(result.message || '操作失败', 'error');
         }
-    } catch (error) {
-        showToast('操作失败', 'error');
-    }
+    }, () => showToast('操作失败', 'error'));
 }
 
 // ==================== 删除操作 ====================
