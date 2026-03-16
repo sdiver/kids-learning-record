@@ -519,16 +519,18 @@
 
     <script>
         // 基础路径检测 - 根据当前URL自动计算
-        const pathParts = window.location.pathname.split('/');
-        const appIndex = pathParts.indexOf('app');
-        const BASE_PATH = appIndex >= 0 ? '/' + pathParts.slice(1, appIndex + 2).join('/') : '';
+        (function() {
+            const pathParts = window.location.pathname.split('/');
+            const appIndex = pathParts.indexOf('app');
+            const basePath = appIndex >= 0 ? '/' + pathParts.slice(1, appIndex + 2).join('/') : '';
 
-        // 更新页面链接以适配代理路径
-        if (BASE_PATH) {
-            document.getElementById('homeLink').href = BASE_PATH + '/';
-            document.getElementById('mistakesLink').href = BASE_PATH + '/mistakes.html';
-            document.getElementById('readingLink').href = BASE_PATH + '/reading.html';
-        }
+            // 更新页面链接以适配代理路径
+            if (basePath) {
+                document.getElementById('homeLink').href = basePath + '/';
+                document.getElementById('mistakesLink').href = basePath + '/mistakes.html';
+                document.getElementById('readingLink').href = basePath + '/reading.html';
+            }
+        })();
     </script>
     <script src="practice.js"></script>
 </body>
