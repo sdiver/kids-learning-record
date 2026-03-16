@@ -16,3 +16,5 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
+      # 如果通过反向代理访问，设置代理路径（如 /portal-home/app/parenting）
+      # - BASE_PATH=/portal-home/app/parenting
