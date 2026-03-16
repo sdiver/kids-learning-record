@@ -2,6 +2,7 @@ const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -421,6 +422,24 @@ apiRouter.get('/stats/:kid_id', (req, res) => {
     );
 });
 
+// 辅助函数：读取并修复 HTML 中的绝对路径
+function serveHtmlWithFixedPaths(res, htmlPath, basePath) {
+  try {
+    let html = fs.readFileSync(htmlPath, 'utf8');
+    if (basePath && basePath !== '') {
+      // 将 href="/xxx" 替换为 href="./xxx"
+      // 将 src="/xxx" 替换为 src="./xxx"
+      html = html.replace(/href="\/([^"]+)"/g, 'href="./$1"');
+      html = html.replace(/src="\/([^"]+)"/g, 'src="./$1"');
+    }
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (err) {
+    console.error('读取 HTML 失败:', err);
+    res.status(500).send('服务器错误');
+  }
+}
+
 // 处理 admin 路径重定向问题 - 确保代理路径下访问 /admin 不重定向到根路径的 /admin/
 app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'admin', 'index.html'));
@@ -429,7 +448,24 @@ app.get('/admin', (req, res) => {
 // 为代理路径添加同样的处理
 commonProxyPaths.forEach(proxyPath => {
     app.get(proxyPath + '/admin', (req, res) => {
-        res.sendFile(path.join(__dirname, 'admin', 'index.html'));
+        serveHtmlWithFixedPaths(res, path.join(__dirname, 'admin', 'index.html'), proxyPath);
+    });
+});
+
+// 为代理路径下的前端页面提供 HTML 路径修复
+commonProxyPaths.forEach(proxyPath => {
+    // 前台页面
+    app.get(proxyPath + '/', (req, res) => {
+        serveHtmlWithFixedPaths(res, path.join(__dirname, 'public', 'index.html'), proxyPath);
+    });
+    app.get(proxyPath + '/practice.html', (req, res) => {
+        serveHtmlWithFixedPaths(res, path.join(__dirname, 'public', 'practice.html'), proxyPath);
+    });
+    app.get(proxyPath + '/reading.html', (req, res) => {
+        serveHtmlWithFixedPaths(res, path.join(__dirname, 'public', 'reading.html'), proxyPath);
+    });
+    app.get(proxyPath + '/mistakes.html', (req, res) => {
+        serveHtmlWithFixedPaths(res, path.join(__dirname, 'public', 'mistakes.html'), proxyPath);
     });
 });
 
