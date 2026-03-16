@@ -13,11 +13,29 @@ app.use(express.json());
 // 支持代理路径和直接访问两种方式
 const basePath = process.env.BASE_PATH || '';
 
-// 静态文件服务 - 支持两种路径
-app.use(basePath + '/', express.static('public'));
-app.use(basePath + '/admin', express.static('admin'));
+// 静态文件服务 - 支持直接访问
+app.use('/', express.static('public'));
+app.use('/admin', express.static('admin'));
 
-// API 路由 - 支持两种路径
+// 支持常见的代理路径前缀（NAS 反向代理常用）
+const commonProxyPaths = [
+    '/portal-home/app/parenting',
+    '/app/parenting',
+    '/parenting'
+];
+
+// 如果有环境变量设置的路径，也添加进去
+if (basePath && !commonProxyPaths.includes(basePath)) {
+    commonProxyPaths.push(basePath);
+}
+
+// 为每个代理路径挂载静态文件服务
+commonProxyPaths.forEach(proxyPath => {
+    app.use(proxyPath + '/', express.static('public'));
+    app.use(proxyPath + '/admin', express.static('admin'));
+});
+
+// API 路由 - 支持多种路径
 const apiRouter = express.Router();
 
 // SQLite 数据库连接
@@ -397,19 +415,17 @@ apiRouter.get('/stats/:kid_id', (req, res) => {
 // 挂载 API 路由到 /api
 app.use('/api', apiRouter);
 
-// 支持代理路径 - 将 API 路由也挂载到 basePath
-if (basePath) {
-    app.use(basePath + '/api', apiRouter);
-}
+// 支持代理路径 - 将 API 路由也挂载到常见代理路径
+commonProxyPaths.forEach(proxyPath => {
+    app.use(proxyPath + '/api', apiRouter);
+});
 
 // 启动服务器
 app.listen(PORT, () => {
     console.log(`🚀 服务器运行在 http://localhost:${PORT}`);
     console.log(`📊 前台页面: http://localhost:${PORT}`);
     console.log(`🔧 后台管理: http://localhost:${PORT}/admin`);
-    if (basePath) {
-        console.log(`📁 代理路径: ${basePath}`);
-    }
+    console.log(`📁 支持的代理路径: ${commonProxyPaths.join(', ') || '无'}`);
 });
 
 module.exports = db;
