@@ -13,11 +13,6 @@ app.use(express.json());
 // 支持代理路径和直接访问两种方式
 const basePath = process.env.BASE_PATH || '';
 
-// 静态文件服务 - 支持直接访问
-app.use('/', express.static('public'));
-// 禁用 redirect 选项，防止 /admin 自动跳转到 /admin/ 丢失代理路径
-app.use('/admin', express.static('admin', { redirect: false }));
-
 // 支持常见的代理路径前缀（NAS 反向代理常用）
 const commonProxyPaths = [
     '/portal-home/app/parenting',
@@ -30,14 +25,27 @@ if (basePath && !commonProxyPaths.includes(basePath)) {
     commonProxyPaths.push(basePath);
 }
 
+// API 路由 - 必须先定义，确保在 static 之前挂载，避免被 static 拦截
+const apiRouter = express.Router();
+
+// 挂载 API 路由到 /api（必须在静态文件之前）
+app.use('/api', apiRouter);
+
+// 支持代理路径 - 将 API 路由也挂载到常见代理路径（必须在静态文件之前）
+commonProxyPaths.forEach(proxyPath => {
+    app.use(proxyPath + '/api', apiRouter);
+});
+
+// 静态文件服务 - 支持直接访问
+app.use('/', express.static('public'));
+// 禁用 redirect 选项，防止 /admin 自动跳转到 /admin/ 丢失代理路径
+app.use('/admin', express.static('admin', { redirect: false }));
+
 // 为每个代理路径挂载静态文件服务
 commonProxyPaths.forEach(proxyPath => {
     app.use(proxyPath + '/', express.static('public'));
     app.use(proxyPath + '/admin', express.static('admin', { redirect: false }));
 });
-
-// API 路由 - 支持多种路径
-const apiRouter = express.Router();
 
 // SQLite 数据库连接
 const db = new sqlite3.Database('./kids_learning.db');
@@ -411,14 +419,6 @@ apiRouter.get('/stats/:kid_id', (req, res) => {
             res.json({ success: true, data: row });
         }
     );
-});
-
-// 挂载 API 路由到 /api
-app.use('/api', apiRouter);
-
-// 支持代理路径 - 将 API 路由也挂载到常见代理路径
-commonProxyPaths.forEach(proxyPath => {
-    app.use(proxyPath + '/api', apiRouter);
 });
 
 // 处理 admin 路径重定向问题 - 确保代理路径下访问 /admin 不重定向到根路径的 /admin/
