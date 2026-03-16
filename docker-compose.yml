@@ -2,9 +2,8 @@ version: '3.8'
 
 services:
   parenting:
-    # 本地构建时使用 build，生产环境使用 image
-    # build: .
-    image: ghcr.io/sdiver/kids-learning-record:latest
+    build: .
+    image: parenting-app:latest
     container_name: parenting-app
     restart: unless-stopped
     ports:
