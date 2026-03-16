@@ -15,7 +15,8 @@ const basePath = process.env.BASE_PATH || '';
 
 // 静态文件服务 - 支持直接访问
 app.use('/', express.static('public'));
-app.use('/admin', express.static('admin'));
+// 禁用 redirect 选项，防止 /admin 自动跳转到 /admin/ 丢失代理路径
+app.use('/admin', express.static('admin', { redirect: false }));
 
 // 支持常见的代理路径前缀（NAS 反向代理常用）
 const commonProxyPaths = [
@@ -32,7 +33,7 @@ if (basePath && !commonProxyPaths.includes(basePath)) {
 // 为每个代理路径挂载静态文件服务
 commonProxyPaths.forEach(proxyPath => {
     app.use(proxyPath + '/', express.static('public'));
-    app.use(proxyPath + '/admin', express.static('admin'));
+    app.use(proxyPath + '/admin', express.static('admin', { redirect: false }));
 });
 
 // API 路由 - 支持多种路径
