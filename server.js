@@ -420,6 +420,18 @@ commonProxyPaths.forEach(proxyPath => {
     app.use(proxyPath + '/api', apiRouter);
 });
 
+// 处理 admin 路径重定向问题 - 确保代理路径下访问 /admin 不重定向到根路径的 /admin/
+app.get('/admin', (req, res) => {
+    res.sendFile(path.join(__dirname, 'admin', 'index.html'));
+});
+
+// 为代理路径添加同样的处理
+commonProxyPaths.forEach(proxyPath => {
+    app.get(proxyPath + '/admin', (req, res) => {
+        res.sendFile(path.join(__dirname, 'admin', 'index.html'));
+    });
+});
+
 // 启动服务器
 app.listen(PORT, () => {
     console.log(`🚀 服务器运行在 http://localhost:${PORT}`);
