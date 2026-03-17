@@ -447,10 +447,16 @@ function serveHtmlWithFixedPaths(res, htmlPath, basePath) {
 app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'admin', 'index.html'));
 });
+app.get('/admin/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'admin', 'index.html'));
+});
 
-// 为代理路径添加同样的处理
+// 为代理路径添加同样的处理（匹配 /admin 和 /admin/ 两种路径）
 commonProxyPaths.forEach(proxyPath => {
     app.get(proxyPath + '/admin', (req, res) => {
+        serveHtmlWithFixedPaths(res, path.join(__dirname, 'admin', 'index.html'), proxyPath);
+    });
+    app.get(proxyPath + '/admin/', (req, res) => {
         serveHtmlWithFixedPaths(res, path.join(__dirname, 'admin', 'index.html'), proxyPath);
     });
 });
