@@ -431,6 +431,9 @@ function serveHtmlWithFixedPaths(res, htmlPath, basePath) {
       // 将 src="/xxx" 替换为 src="./xxx"
       html = html.replace(/href="\/([^"]+)"/g, 'href="./$1"');
       html = html.replace(/src="\/([^"]+)"/g, 'src="./$1"');
+      // 修复 admin.js 的相对路径 - 从 "admin.js" 改为 "./admin/admin.js"
+      // 这样可以确保在代理路径下正确加载 admin.js
+      html = html.replace(/src="admin\.js"/g, 'src="./admin/admin.js"');
     }
     res.setHeader('Content-Type', 'text/html');
     res.send(html);
