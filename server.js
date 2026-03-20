@@ -48,8 +48,10 @@ commonProxyPaths.forEach(proxyPath => {
     app.use(proxyPath + '/admin', express.static('admin', { redirect: false }));
 });
 
-// SQLite 数据库连接
-const db = new sqlite3.Database('./kids_learning.db');
+// SQLite 数据库连接 - 支持环境变量指定路径（用于 Docker volume 挂载）
+const dbPath = process.env.DB_PATH || process.env.DATABASE_PATH || './kids_learning.db';
+const db = new sqlite3.Database(dbPath);
+console.log('📁 数据库路径:', dbPath);
 
 // 初始化数据库表
 db.serialize(() => {
