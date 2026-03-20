@@ -116,6 +116,24 @@ db.serialize(() => {
         FOREIGN KEY (kid_id) REFERENCES kids(id) ON DELETE CASCADE
     )`);
 
+    // 错字本表
+    db.run(`CREATE TABLE IF NOT EXISTS mistakes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        kid_id INTEGER NOT NULL,
+        char TEXT NOT NULL,
+        pinyin TEXT,
+        recognized TEXT,
+        source TEXT,
+        count INTEGER DEFAULT 1,
+        review_count INTEGER DEFAULT 0,
+        status TEXT DEFAULT 'new' CHECK(status IN ('new', 'practicing', 'mastered')),
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        last_wrong DATETIME DEFAULT CURRENT_TIMESTAMP,
+        last_reviewed DATETIME,
+        mastered_at DATETIME,
+        FOREIGN KEY (kid_id) REFERENCES kids(id) ON DELETE CASCADE
+    )`);
+
     // 插入默认科目
     const defaultSubjects = [
         ['语文', '📚', '#FF6B6B', 1],
@@ -420,6 +438,161 @@ apiRouter.get('/stats/:kid_id', (req, res) => {
             res.json({ success: true, data: row });
         }
     );
+});
+
+// ==================== 错字本管理 API ====================
+
+// 获取小朋友的错字列表
+apiRouter.get('/mistakes/:kid_id', (req, res) => {
+    const kidId = req.params.kid_id;
+    db.all(
+        `SELECT * FROM mistakes WHERE kid_id = ? ORDER BY 
+            CASE status 
+                WHEN 'new' THEN 0 
+                WHEN 'practicing' THEN 1 
+                WHEN 'mastered' THEN 2 
+            END, 
+            last_wrong DESC`,
+        [kidId],
+        (err, rows) => {
+            if (err) return res.status(500).json({ success: false, message: err.message });
+            res.json({ success: true, data: rows });
+        }
+    );
+});
+
+// 添加/更新错字
+apiRouter.post('/mistakes', (req, res) => {
+    const { kid_id, char, pinyin, recognized, source } = req.body;
+    
+    if (!kid_id || !char) {
+        return res.status(400).json({ success: false, message: 'kid_id 和 char 不能为空' });
+    }
+
+    // 先查询是否已存在
+    db.get(
+        'SELECT * FROM mistakes WHERE kid_id = ? AND char = ?',
+        [kid_id, char],
+        (err, row) => {
+            if (err) return res.status(500).json({ success: false, message: err.message });
+
+            if (row) {
+                // 更新现有错字
+                const newCount = (row.count || 0) + 1;
+                const newStatus = row.status === 'mastered' ? 'practicing' : row.status;
+                
+                db.run(
+                    `UPDATE mistakes SET 
+                        count = ?, 
+                        recognized = ?, 
+                        last_wrong = CURRENT_TIMESTAMP,
+                        status = ?
+                    WHERE id = ?`,
+                    [newCount, recognized || '未识别', newStatus, row.id],
+                    function(err) {
+                        if (err) return res.status(500).json({ success: false, message: err.message });
+                        res.json({ success: true, data: { id: row.id, updated: true, count: newCount } });
+                    }
+                );
+            } else {
+                // 添加新错字
+                db.run(
+                    `INSERT INTO mistakes (kid_id, char, pinyin, recognized, source, count, status) 
+                     VALUES (?, ?, ?, ?, ?, 1, 'new')`,
+                    [kid_id, char, pinyin || '', recognized || '未识别', source || '未知'],
+                    function(err) {
+                        if (err) return res.status(500).json({ success: false, message: err.message });
+                        res.json({ success: true, data: { id: this.lastID, created: true } });
+                    }
+                );
+            }
+        }
+    );
+});
+
+// 更新错字（复习次数、状态等）
+apiRouter.put('/mistakes/:id', (req, res) => {
+    const { review_count, status } = req.body;
+    const updates = [];
+    const params = [];
+
+    if (review_count !== undefined) {
+        updates.push('review_count = ?');
+        params.push(review_count);
+        updates.push('last_reviewed = CURRENT_TIMESTAMP');
+    }
+    
+    if (status) {
+        updates.push('status = ?');
+        params.push(status);
+        if (status === 'mastered') {
+            updates.push('mastered_at = CURRENT_TIMESTAMP');
+        }
+    }
+
+    if (updates.length === 0) {
+        return res.status(400).json({ success: false, message: '没有要更新的字段' });
+    }
+
+    params.push(req.params.id);
+
+    db.run(
+        `UPDATE mistakes SET ${updates.join(', ')} WHERE id = ?`,
+        params,
+        (err) => {
+            if (err) return res.status(500).json({ success: false, message: err.message });
+            res.json({ success: true, message: '更新成功' });
+        }
+    );
+});
+
+// 删除错字
+apiRouter.delete('/mistakes/:id', (req, res) => {
+    db.run('DELETE FROM mistakes WHERE id = ?', [req.params.id], (err) => {
+        if (err) return res.status(500).json({ success: false, message: err.message });
+        res.json({ success: true, message: '删除成功' });
+    });
+});
+
+// 获取拼音（带缓存）
+apiRouter.get('/pinyin/:char', async (req, res) => {
+    const char = req.params.char;
+    
+    // 简单的拼音字典（常用字）
+    const pinyinDict = {
+        '鹅': 'é', '曲': 'qū', '项': 'xiàng', '向': 'xiàng', '天': 'tiān', '歌': 'gē',
+        '白': 'bái', '毛': 'máo', '浮': 'fú', '绿': 'lǜ', '水': 'shuǐ', '红': 'hóng',
+        '掌': 'zhǎng', '拨': 'bō', '清': 'qīng', '波': 'bō', '床': 'chuáng', '前': 'qián',
+        '明': 'míng', '月': 'yuè', '光': 'guāng', '疑': 'yí', '地': 'dì', '上': 'shàng',
+        '霜': 'shuāng', '举': 'jǔ', '头': 'tóu', '望': 'wàng', '低': 'dī', '思': 'sī',
+        '故': 'gù', '乡': 'xiāng', '春': 'chūn', '眠': 'mián', '不': 'bù', '觉': 'jué',
+        '晓': 'xiǎo', '处': 'chù', '闻': 'wén', '啼': 'tí', '鸟': 'niǎo', '夜': 'yè',
+        '来': 'lái', '风': 'fēng', '雨': 'yǔ', '声': 'shēng', '花': 'huā', '落': 'luò',
+        '知': 'zhī', '多': 'duō', '少': 'shǎo', '小': 'xiǎo', '兔': 'tù', '子': 'zi',
+        '乖': 'guāi', '把': 'bǎ', '门': 'mén', '儿': 'ér', '开': 'kāi', '快': 'kuài',
+        '点': 'diǎn', '我': 'wǒ', '要': 'yào', '进': 'jìn', '妈': 'mā', '没': 'méi',
+        '回': 'huí', '谁': 'shuí', '也': 'yě', '锄': 'chú', '禾': 'hé', '日': 'rì',
+        '当': 'dāng', '午': 'wǔ', '汗': 'hàn', '滴': 'dī', '下': 'xià', '土': 'tǔ',
+        '盘': 'pán', '中': 'zhōng', '餐': 'cān', '粒': 'lì', '皆': 'jiē', '辛': 'xīn',
+        '苦': 'kǔ', '依': 'yī', '山': 'shān', '尽': 'jìn', '黄': 'huáng',
+        '河': 'hé', '入': 'rù', '海': 'hǎi', '流': 'liú', '欲': 'yù', '穷': 'qióng',
+        '千': 'qiān', '里': 'lǐ', '目': 'mù', '更': 'gèng', '层': 'céng', '楼': 'lóu',
+        '照': 'zhào', '香': 'xiāng', '炉': 'lú', '生': 'shēng', '紫': 'zǐ', '烟': 'yān',
+        '遥': 'yáo', '看': 'kàn', '瀑': 'pù', '布': 'bù', '挂': 'guà', '川': 'chuān',
+        '飞': 'fēi', '直': 'zhí', '三': 'sān', '尺': 'chǐ', '银': 'yín', '九': 'jiǔ',
+        '人': 'rén', '之': 'zhī', '初': 'chū', '性': 'xìng', '本': 'běn', '善': 'shàn',
+        '相': 'xiāng', '近': 'jìn', '习': 'xí', '远': 'yuǎn', '苟': 'gǒu', '教': 'jiào',
+        '乃': 'nǎi', '迁': 'qiān', '道': 'dào', '贵': 'guì', '以': 'yǐ', '专': 'zhuān'
+    };
+
+    const pinyin = pinyinDict[char];
+    
+    if (pinyin) {
+        res.json({ success: true, data: { char, pinyin, from: 'local' } });
+    } else {
+        // 对于不认识的字，返回空，让前端尝试其他方式
+        res.json({ success: true, data: { char, pinyin: '', from: 'unknown' } });
+    }
 });
 
 // 辅助函数：读取并修复 HTML 中的绝对路径

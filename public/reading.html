@@ -224,6 +224,14 @@
             flex-wrap: wrap;
         }
 
+        .control-row {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
         .btn {
             padding: 15px 30px;
             border-radius: 12px;
@@ -235,6 +243,28 @@
             display: inline-flex;
             align-items: center;
             gap: 8px;
+        }
+
+        .btn-mode {
+            padding: 10px 20px;
+            font-size: 0.9rem;
+            background: #e0e0e0;
+            color: #666;
+        }
+
+        .btn-mode.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-skip {
+            background: #FF9800;
+            color: white;
+        }
+
+        .btn-skip:hover {
+            background: #F57C00;
+            transform: translateY(-2px);
         }
 
         .btn-primary {
@@ -260,6 +290,44 @@
 
         .btn-secondary:hover {
             background: #d0d0d0;
+        }
+
+        /* 提示弹窗 */
+        .hint-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px 50px;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            z-index: 1000;
+            text-align: center;
+            animation: popIn 0.3s ease;
+        }
+
+        @keyframes popIn {
+            from {
+                transform: translate(-50%, -50%) scale(0.8);
+                opacity: 0;
+            }
+            to {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 1;
+            }
+        }
+
+        .hint-char {
+            font-size: 4rem;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .hint-pinyin {
+            font-size: 2rem;
+            color: #667eea;
+            margin-bottom: 15px;
         }
 
         /* 状态指示器 */
@@ -466,6 +534,14 @@
                 <input type="range" class="speed-slider" id="speedSlider" min="1" max="5" value="3">
                 <span id="speedValue">正常</span>
             </div>
+            <div class="control-row" style="margin-top: 15px;">
+                <button class="btn btn-mode" id="slowModeBtn" title="慢速模式：每个字之间有更多时间">
+                    🐇 正常模式
+                </button>
+                <button class="btn btn-mode active" id="hintModeBtn" title="提示模式：点击字可以看拼音">
+                    💡 提示开启
+                </button>
+            </div>
         </div>
 
         <!-- 文章选择 -->
@@ -529,6 +605,9 @@
                 <button class="btn btn-secondary hidden" id="resumeBtn" onclick="resumeReading()">
                     ▶️ 继续
                 </button>
+                <button class="btn btn-skip hidden" id="skipBtn" onclick="skipCurrentChar()" title="跳过当前字">
+                    ⏭️ 跳过
+                </button>
                 <button class="btn btn-secondary" id="resetBtn" onclick="resetReading()">
                     🔄 重新开始
                 </button>
@@ -539,6 +618,9 @@
                     💾 保存记录
                 </button>
             </div>
+
+            <!-- 字提示容器 -->
+            <div id="charHint" class="hidden"></div>
 
             <div class="result-area hidden" id="resultArea">
                 <div class="result-score" id="resultScore">0%</div>

@@ -1,7 +1,17 @@
 // 错字本模块
 
-// 拼音字典
-const pinyinDict = {
+// API 基础URL - 根据当前路径自动检测
+const pathParts = window.location.pathname.split('/');
+const appIndex = pathParts.indexOf('app');
+const BASE_PATH = appIndex >= 0 ? '/' + pathParts.slice(1, appIndex + 2).join('/') : '';
+const API_BASE = BASE_PATH + '/api';
+
+// 拼音缓存
+let pinyinCache = {};
+const PINYIN_CACHE_KEY = 'pinyin_cache';
+
+// 本地拼音字典（作为回退）
+const localPinyinDict = {
     '鹅': 'é', '曲': 'qū', '项': 'xiàng', '向': 'xiàng', '天': 'tiān', '歌': 'gē',
     '白': 'bái', '毛': 'máo', '浮': 'fú', '绿': 'lǜ', '水': 'shuǐ', '红': 'hóng',
     '掌': 'zhǎng', '拨': 'bō', '清': 'qīng', '波': 'bō', '床': 'chuáng', '前': 'qián',
@@ -27,8 +37,8 @@ const pinyinDict = {
     '乃': 'nǎi', '迁': 'qiān', '道': 'dào', '贵': 'guì', '以': 'yǐ', '专': 'zhuān',
     '大': 'dà', '的': 'de', '是': 'shì', '了': 'le', '在': 'zài', '有': 'yǒu',
     '和': 'hé', '这': 'zhè', '那': 'nà', '个': 'gè', '们': 'men', '说': 'shuō',
-    '去': 'qù', '到': 'dào', '看': 'kàn', '好': 'hǎo', '很': 'hěn',
-    '都': 'dōu', '就': 'jiù', '可': 'kě', '能': 'néng', '对': 'duì',
+    '去': 'qù', '到': 'dào', '好': 'hǎo', '很': 'hěn',
+    '都': 'dōu', '就': 'jiù', '可': 'kě', '也': 'yě', '能': 'néng', '对': 'duì',
     '着': 'zhe', '过': 'guò', '给': 'gěi', '但': 'dàn', '还': 'hái', '自': 'zì',
     '让': 'ràng', '从': 'cóng', '才': 'cái', '用': 'yòng', '想': 'xiǎng', '只': 'zhǐ',
     '最': 'zuì', '再': 'zài', '现': 'xiàn', '比': 'bǐ', '没': 'méi',
@@ -37,12 +47,110 @@ const pinyinDict = {
     '家': 'jiā', '心': 'xīn', '面': 'miàn', '打': 'dǎ', '长': 'zhǎng', '方': 'fāng',
     '成': 'chéng', '什': 'shén', '么': 'me', '名': 'míng', '同': 'tóng', '五': 'wǔ',
     '六': 'liù', '七': 'qī', '八': 'bā', '十': 'shí', '你': 'nǐ',
-    '他': 'tā', '她': 'tā', '它': 'tā', '得': 'de', '地': 'de',
-    '吧': 'ba', '吗': 'ma', '呢': 'ne', '啊': 'a'
+    '他': 'tā', '她': 'tā', '它': 'tā', '吧': 'ba', '吗': 'ma', '呢': 'ne', '啊': 'a'
 };
+
+// 初始化拼音缓存
+function initPinyinCache() {
+    try {
+        const cached = localStorage.getItem(PINYIN_CACHE_KEY);
+        if (cached) {
+            pinyinCache = JSON.parse(cached);
+            console.log('错字本: 拼音缓存已加载:', Object.keys(pinyinCache).length, '个字');
+        }
+    } catch (e) {
+        console.error('加载拼音缓存失败:', e);
+        pinyinCache = {};
+    }
+}
+
+// 保存拼音缓存
+function savePinyinCache() {
+    try {
+        localStorage.setItem(PINYIN_CACHE_KEY, JSON.stringify(pinyinCache));
+    } catch (e) {
+        console.error('保存拼音缓存失败:', e);
+    }
+}
+
+// 获取拼音（带缓存和网络查询）
+async function getPinyin(char) {
+    // 1. 先查缓存
+    if (pinyinCache[char]) {
+        return pinyinCache[char];
+    }
+
+    // 2. 查本地字典
+    if (localPinyinDict[char]) {
+        pinyinCache[char] = localPinyinDict[char];
+        savePinyinCache();
+        return localPinyinDict[char];
+    }
+
+    // 3. 尝试从服务器获取
+    try {
+        const response = await fetch(`${API_BASE}/pinyin/${encodeURIComponent(char)}`);
+        const data = await response.json();
+        if (data.success && data.data.pinyin) {
+            pinyinCache[char] = data.data.pinyin;
+            savePinyinCache();
+            return data.data.pinyin;
+        }
+    } catch (e) {
+        console.error('获取拼音失败:', e);
+    }
+
+    // 4. 尝试使用在线API
+    try {
+        const pinyin = await fetchPinyinFromAPI(char);
+        if (pinyin) {
+            pinyinCache[char] = pinyin;
+            savePinyinCache();
+            return pinyin;
+        }
+    } catch (e) {
+        console.error('网络查询拼音失败:', e);
+    }
+
+    return '';
+}
+
+// 从网络API获取拼音
+async function fetchPinyinFromAPI(char) {
+    try {
+        const response = await fetch(`https://v.api.aa1.cn/api/api-pinyin/pinyin.php?msg=${encodeURIComponent(char)}&type=text`, {
+            method: 'GET',
+            mode: 'cors'
+        });
+        
+        if (response.ok) {
+            const text = await response.text();
+            const pinyin = text.trim().replace(/[\d\s]/g, '');
+            if (pinyin && pinyin.length > 0) {
+                return pinyin;
+            }
+        }
+    } catch (e) {
+        console.log('在线拼音API失败');
+    }
+    
+    return '';
+}
+
+// 批量获取拼音
+async function batchGetPinyin(chars) {
+    const results = {};
+    const promises = chars.map(async char => {
+        const pinyin = await getPinyin(char);
+        results[char] = pinyin;
+    });
+    await Promise.all(promises);
+    return results;
+}
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
+    initPinyinCache();
     loadMistakes();
     updateStats();
     initTargetCharSelect();
@@ -57,11 +165,35 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// 获取错字本数据
-function getMistakes() {
+// 获取当前小朋友ID
+function getCurrentKidId() {
+    return localStorage.getItem('currentKidId');
+}
+
+// 获取错字本数据（优先API，回退localStorage）
+async function getMistakes() {
+    const kidId = getCurrentKidId();
+    
+    // 优先尝试从API获取
+    if (kidId) {
+        try {
+            const response = await fetch(`${API_BASE}/mistakes/${kidId}`);
+            const data = await response.json();
+            if (data.success) {
+                console.log('从API获取错字本:', data.data.length, '个字');
+                // 同时更新本地缓存
+                localStorage.setItem('mistakeBook', JSON.stringify(data.data));
+                return data.data;
+            }
+        } catch (error) {
+            console.error('API获取错字本失败，使用localStorage:', error);
+        }
+    }
+    
+    // 回退到localStorage
     try {
         const data = localStorage.getItem('mistakeBook');
-        console.log('getMistakes 读取数据:', data);
+        console.log('从localStorage获取错字本:', data);
         return data ? JSON.parse(data) : [];
     } catch (error) {
         console.error('读取错字本失败:', error);
@@ -69,41 +201,126 @@ function getMistakes() {
     }
 }
 
-// 播放汉字发音
+// 优化后的发音函数（中文+好听+适合儿童）
 function speakChar(char) {
     if (!char) return;
 
-    // 使用 Web Speech API
-    const utterance = new SpeechSynthesisUtterance(char);
-    utterance.lang = 'zh-CN';
-    utterance.rate = 0.8; // 稍微慢一点，便于学习
-    utterance.pitch = 1.0;
+    // 取消之前的发音
+    speechSynthesis.cancel();
 
-    // 尝试找到中文语音
-    const voices = speechSynthesis.getVoices();
-    const chineseVoice = voices.find(v => v.lang.includes('zh') || v.lang.includes('CN'));
-    if (chineseVoice) {
-        utterance.voice = chineseVoice;
+    const utterance = new SpeechSynthesisUtterance(char);
+    
+    // 儿童优化配置
+    utterance.lang = 'zh-CN';
+    utterance.rate = 0.75; // 更慢的语速，适合儿童跟读
+    utterance.pitch = 1.15; // 稍微提高音调，更亲切
+    utterance.volume = 1.0; // 最大音量
+
+    // 等待语音列表加载并选择最佳中文语音
+    const selectVoice = () => {
+        const voices = speechSynthesis.getVoices();
+        
+        // 语音选择优先级：
+        // 1. Google 中文女声
+        // 2. Microsoft 中文女声
+        // 3. 任何中文语音
+        // 4. 默认语音
+        let selectedVoice = null;
+        
+        // 优先选择 Google 中文女声
+        selectedVoice = voices.find(v => 
+            v.name.includes('Google') && v.name.includes('中文') && v.name.includes('女')
+        );
+        
+        // 其次 Microsoft 中文女声
+        if (!selectedVoice) {
+            selectedVoice = voices.find(v => 
+                v.name.includes('Microsoft') && v.lang.includes('zh') && 
+                (v.name.includes('女') || v.name.includes('Yaoyao') || v.name.includes('Huihui'))
+            );
+        }
+        
+        // 然后任何中文女声
+        if (!selectedVoice) {
+            selectedVoice = voices.find(v => 
+                v.lang.includes('zh') && (v.name.includes('女') || v.gender === 'female')
+            );
+        }
+        
+        // 最后任何中文语音
+        if (!selectedVoice) {
+            selectedVoice = voices.find(v => v.lang.includes('zh') || v.lang.includes('CN'));
+        }
+
+        if (selectedVoice) {
+            utterance.voice = selectedVoice;
+            console.log('选择语音:', selectedVoice.name);
+        }
+    };
+
+    // 如果语音列表已加载，直接选择
+    if (speechSynthesis.getVoices().length > 0) {
+        selectVoice();
+    } else {
+        // 等待语音列表加载
+        speechSynthesis.addEventListener('voiceschanged', selectVoice, { once: true });
     }
 
-    speechSynthesis.speak(utterance);
-    console.log('播放发音:', char);
+    // 添加事件监听
+    utterance.onstart = () => {
+        console.log('开始发音:', char);
+    };
+    
+    utterance.onerror = (e) => {
+        console.error('发音错误:', e);
+        // 错误时尝试用默认设置重试
+        setTimeout(() => {
+            const retry = new SpeechSynthesisUtterance(char);
+            retry.lang = 'zh-CN';
+            retry.rate = 0.8;
+            speechSynthesis.speak(retry);
+        }, 100);
+    };
+
+    // 确保语音已准备好再播放
+    setTimeout(() => {
+        speechSynthesis.speak(utterance);
+    }, 50);
 }
 
-// 增加复习次数
-function incrementReviewCount(char) {
-    const mistakes = getMistakes();
+// 增加复习次数（API优先）
+async function incrementReviewCount(char) {
+    const mistakes = await getMistakes();
     const mistake = mistakes.find(m => m.char === char);
 
     if (mistake) {
+        // 更新本地数据
         mistake.reviewCount = (mistake.reviewCount || 0) + 1;
         mistake.lastReviewed = new Date().toISOString();
-        saveMistakes(mistakes);
+        
+        // 如果有API ID，更新到服务器
+        if (mistake.id) {
+            try {
+                await fetch(`${API_BASE}/mistakes/${mistake.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        review_count: mistake.reviewCount,
+                        status: mistake.status
+                    })
+                });
+            } catch (e) {
+                console.error('API更新复习次数失败:', e);
+            }
+        }
+        
+        // 保存到localStorage（作为缓存和回退）
+        localStorage.setItem('mistakeBook', JSON.stringify(mistakes));
         console.log('更新复习次数:', char, '第', mistake.reviewCount, '次');
     }
 }
 
-// 保存错字本数据
+// 保存错字本数据到localStorage
 function saveMistakes(mistakes) {
     try {
         localStorage.setItem('mistakeBook', JSON.stringify(mistakes));
@@ -115,8 +332,8 @@ function saveMistakes(mistakes) {
 }
 
 // 加载并显示错字列表
-function loadMistakes() {
-    const mistakes = getMistakes();
+async function loadMistakes() {
+    const mistakes = await getMistakes();
     console.log('加载错字本, 共', mistakes.length, '个字:', mistakes);
 
     const container = document.getElementById('mistakeList');
@@ -136,22 +353,28 @@ function loadMistakes() {
         return;
     }
 
+    // 预加载所有拼音
+    const chars = mistakes.map(m => m.char);
+    await batchGetPinyin(chars);
+
     // 按状态分组排序
     const sorted = mistakes.sort((a, b) => {
         const statusOrder = { 'new': 0, 'practicing': 1, 'mastered': 2 };
         return statusOrder[a.status] - statusOrder[b.status];
     });
 
-    container.innerHTML = sorted.map(m => `
+    container.innerHTML = sorted.map(m => {
+        const pinyin = m.pinyin || pinyinCache[m.char] || localPinyinDict[m.char] || '未知拼音';
+        return `
         <div class="mistake-item" data-char="${m.char}">
             <div class="mistake-char" style="cursor: pointer; position: relative;" onclick="showCharVisual('${m.char}')" title="点击查看图形">
                 ${m.char}
                 <button class="btn-speak" onclick="event.stopPropagation(); speakChar('${m.char}')" title="点击发音">🔊</button>
             </div>
             <div class="mistake-info">
-                <div class="mistake-pinyin">${m.pinyin || pinyinDict[m.char] || '未知拼音'}</div>
+                <div class="mistake-pinyin">${pinyin}</div>
                 <div class="mistake-source">
-                    来自《${m.source}》· 读错 ${m.count} 次
+                    来自《${m.source || '未知'}》· 读错 ${m.count} 次
                     ${m.recognized && m.recognized !== '未识别' && m.recognized !== m.char ? ` · 读成"${m.recognized}"` : ''}
                     ${m.reviewCount ? ` · 已复习 ${m.reviewCount} 次` : ''}
                 </div>
@@ -164,7 +387,7 @@ function loadMistakes() {
                 ${m.status !== 'mastered' ? `<button class="btn-mastered" onclick="markMastered('${m.char}')">掌握</button>` : ''}
             </div>
         </div>
-    `).join('');
+    `}).join('');
 }
 
 // 获取状态文本
@@ -174,8 +397,8 @@ function getStatusText(status) {
 }
 
 // 更新统计
-function updateStats() {
-    const mistakes = getMistakes();
+async function updateStats() {
+    const mistakes = await getMistakes();
     document.getElementById('totalMistakes').textContent = mistakes.length;
     document.getElementById('newMistakes').textContent = mistakes.filter(m => m.status === 'new').length;
     document.getElementById('practicing').textContent = mistakes.filter(m => m.status === 'practicing').length;
@@ -183,94 +406,182 @@ function updateStats() {
 
     // 显示NEW标签
     const hasNew = mistakes.some(m => m.status === 'new');
-    document.getElementById('newBadge').style.display = hasNew ? 'inline-block' : 'none';
+    const newBadge = document.getElementById('newBadge');
+    if (newBadge) {
+        newBadge.style.display = hasNew ? 'inline-block' : 'none';
+    }
 }
 
 // 刷新错字本
-function refreshMistakes() {
+async function refreshMistakes() {
     console.log('手动刷新错字本');
-    loadMistakes();
-    updateStats();
+    await loadMistakes();
+    await updateStats();
     initTargetCharSelect();
     alert('错字本已刷新');
 }
 
-// 清空所有错字
-function clearAllMistakes() {
-    if (confirm('确定要清空所有错字吗？此操作无法撤销！')) {
+// 清空所有错字（API优先）
+async function clearAllMistakes() {
+    if (!confirm('确定要清空所有错字吗？此操作无法撤销！')) return;
+
+    const kidId = getCurrentKidId();
+    
+    if (kidId) {
+        // 从API删除
         try {
-            localStorage.removeItem('mistakeBook');
-            console.log('错字本已清空');
-            loadMistakes();
-            updateStats();
-            initTargetCharSelect();
-            alert('错字本已清空');
-        } catch (error) {
-            console.error('清空错字本失败:', error);
-            alert('清空失败');
+            const mistakes = await getMistakes();
+            const deletePromises = mistakes.map(m => {
+                if (m.id) {
+                    return fetch(`${API_BASE}/mistakes/${m.id}`, { method: 'DELETE' });
+                }
+                return Promise.resolve();
+            });
+            await Promise.all(deletePromises);
+        } catch (e) {
+            console.error('API清空失败:', e);
         }
+    }
+    
+    // 清空localStorage
+    try {
+        localStorage.removeItem('mistakeBook');
+        console.log('错字本已清空');
+        await loadMistakes();
+        await updateStats();
+        initTargetCharSelect();
+        alert('错字本已清空');
+    } catch (error) {
+        console.error('清空错字本失败:', error);
+        alert('清空失败');
     }
 }
 
 // 初始化目标字选择器
-function initTargetCharSelect() {
+async function initTargetCharSelect() {
     const select = document.getElementById('targetChar');
-    const mistakes = getMistakes().filter(m => m.status !== 'mastered');
+    if (!select) return;
+    
+    const mistakes = await getMistakes();
+    const practicing = mistakes.filter(m => m.status !== 'mastered');
 
     select.innerHTML = '<option value="">-- 选择错字 --</option>' +
-        mistakes.map(m => `<option value="${m.char}">${m.char} (${m.pinyin || pinyinDict[m.char] || '未知'})</option>`).join('');
+        practicing.map(m => {
+            const pinyin = m.pinyin || pinyinCache[m.char] || localPinyinDict[m.char] || '未知';
+            return `<option value="${m.char}">${m.char} (${pinyin})</option>`;
+        }).join('');
 }
 
-// 添加错字（从阅读页面调用）
-function addMistake(char, recognized, source) {
-    const mistakes = getMistakes();
+// 添加错字（从阅读页面调用，API优先）
+async function addMistake(char, recognized, source) {
+    const kidId = getCurrentKidId();
+    const mistakes = await getMistakes();
+    
     const existing = mistakes.find(m => m.char === char);
+    const pinyin = await getPinyin(char);
 
     if (existing) {
         existing.count++;
         existing.recognized = recognized;
         existing.lastWrong = new Date().toISOString();
         if (existing.status === 'mastered') {
-            existing.status = 'practicing'; // 重新变为练习中
+            existing.status = 'practicing';
+        }
+        
+        // 更新到API
+        if (kidId && existing.id) {
+            try {
+                await fetch(`${API_BASE}/mistakes/${existing.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        count: existing.count,
+                        recognized: existing.recognized,
+                        status: existing.status
+                    })
+                });
+            } catch (e) {
+                console.error('API更新错字失败:', e);
+            }
         }
     } else {
-        mistakes.push({
+        const newMistake = {
             char: char,
-            pinyin: pinyinDict[char] || '',
+            pinyin: pinyin,
             recognized: recognized,
             source: source,
             count: 1,
             status: 'new',
             createdAt: new Date().toISOString(),
             lastWrong: new Date().toISOString()
-        });
+        };
+        
+        // 添加到API
+        if (kidId) {
+            try {
+                const response = await fetch(`${API_BASE}/mistakes`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        kid_id: parseInt(kidId),
+                        char: char,
+                        pinyin: pinyin,
+                        recognized: recognized,
+                        source: source
+                    })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    newMistake.id = result.data.id;
+                }
+            } catch (e) {
+                console.error('API添加错字失败:', e);
+            }
+        }
+        
+        mistakes.push(newMistake);
     }
 
     saveMistakes(mistakes);
 }
 
-// 标记为已掌握
-function markMastered(char) {
-    const mistakes = getMistakes();
+// 标记为已掌握（API优先）
+async function markMastered(char) {
+    const mistakes = await getMistakes();
     const mistake = mistakes.find(m => m.char === char);
+    
     if (mistake) {
         mistake.status = 'mastered';
         mistake.masteredAt = new Date().toISOString();
+        
+        // 更新到API
+        if (mistake.id) {
+            try {
+                await fetch(`${API_BASE}/mistakes/${mistake.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: 'mastered' })
+                });
+            } catch (e) {
+                console.error('API标记掌握失败:', e);
+            }
+        }
+        
         saveMistakes(mistakes);
-        loadMistakes();
-        updateStats();
+        await loadMistakes();
+        await updateStats();
         initTargetCharSelect();
     }
 }
 
 // 练习单个字
-function practiceChar(char) {
-    const pinyin = pinyinDict[char] || '';
+async function practiceChar(char) {
+    const pinyin = await getPinyin(char);
     document.getElementById('practiceArea').classList.add('active');
     document.getElementById('practiceTitle').textContent = `练习：${char}`;
 
     // 获取复习次数
-    const mistakes = getMistakes();
+    const mistakes = await getMistakes();
     const mistake = mistakes.find(m => m.char === char);
     const reviewCount = mistake ? (mistake.reviewCount || 0) : 0;
 
@@ -295,15 +606,14 @@ function practiceChar(char) {
 
     // 增加复习次数并更新状态
     if (mistake) {
-        // 增加复习次数
-        incrementReviewCount(char);
+        await incrementReviewCount(char);
 
         // 更新状态为练习中
         if (mistake.status === 'new') {
             mistake.status = 'practicing';
             saveMistakes(mistakes);
-            loadMistakes();
-            updateStats();
+            await loadMistakes();
+            await updateStats();
         }
     }
 
@@ -315,7 +625,7 @@ function practiceChar(char) {
 function generatePinyinOptions(correctPinyin) {
     if (!correctPinyin) return ['未知'];
 
-    const allPinyins = Object.values(pinyinDict).filter(p => p);
+    const allPinyins = Object.values(localPinyinDict).filter(p => p);
     const wrongOptions = [];
 
     // 找相似拼音
@@ -346,7 +656,7 @@ function isSimilarPinyin(p1, p2) {
 }
 
 // 检查拼音答案
-function checkPinyinAnswer(char, selected, correct, btn) {
+async function checkPinyinAnswer(char, selected, correct, btn) {
     const isCorrect = selected === correct;
     btn.classList.add(isCorrect ? 'correct' : 'wrong');
 
@@ -371,22 +681,26 @@ function closePractice() {
 }
 
 // 开始错字练习
-function startMistakePractice() {
-    const mistakes = getMistakes().filter(m => m.status !== 'mastered');
-    if (mistakes.length === 0) {
+async function startMistakePractice() {
+    const mistakes = await getMistakes();
+    const practicing = mistakes.filter(m => m.status !== 'mastered');
+    
+    if (practicing.length === 0) {
         alert('没有错字需要练习！');
         return;
     }
 
     // 随机选一个
-    const random = mistakes[Math.floor(Math.random() * mistakes.length)];
+    const random = practicing[Math.floor(Math.random() * practicing.length)];
     practiceChar(random.char);
 }
 
 // 开始拼音练习
-function startPinyinPractice() {
-    const mistakes = getMistakes().filter(m => m.status !== 'mastered');
-    if (mistakes.length === 0) {
+async function startPinyinPractice() {
+    const mistakes = await getMistakes();
+    const practicing = mistakes.filter(m => m.status !== 'mastered');
+    
+    if (practicing.length === 0) {
         alert('没有错字需要练习！');
         return;
     }
@@ -395,14 +709,16 @@ function startPinyinPractice() {
     document.getElementById('practiceTitle').textContent = '看拼音选汉字';
 
     // 随机选4个字
-    const shuffled = mistakes.sort(() => Math.random() - 0.5).slice(0, 4);
+    const shuffled = practicing.sort(() => Math.random() - 0.5).slice(0, 4);
     const correct = shuffled[0];
 
     // 增加复习次数
-    incrementReviewCount(correct.char);
+    await incrementReviewCount(correct.char);
+
+    const pinyin = correct.pinyin || pinyinCache[correct.char] || localPinyinDict[correct.char] || '?';
 
     document.getElementById('practiceQuestion').innerHTML = `
-        <div style="font-size: 2rem; color: #667eea;">${correct.pinyin || pinyinDict[correct.char] || '?'}</div>
+        <div style="font-size: 2rem; color: #667eea;">${pinyin}</div>
         <div style="font-size: 1rem; color: #888; margin-top: 10px;">选择对应的汉字</div>
         <button onclick="speakChar('${correct.char}')" style="margin-top: 10px; padding: 8px 16px; background: #ff6b6b; color: white; border: none; border-radius: 12px; cursor: pointer; font-size: 0.9rem;">🔊 听提示</button>
     `;
@@ -681,10 +997,10 @@ function generateGenericVisual(char, pinyin) {
 }
 
 // 显示汉字图形化弹窗
-function showCharVisual(char) {
-    const mistakes = getMistakes();
+async function showCharVisual(char) {
+    const mistakes = await getMistakes();
     const mistake = mistakes.find(m => m.char === char);
-    const pinyin = mistake?.pinyin || pinyinDict[char] || '';
+    const pinyin = mistake?.pinyin || pinyinCache[char] || localPinyinDict[char] || await getPinyin(char);
     const reviewCount = mistake?.reviewCount || 0;
 
     // 获取图形数据

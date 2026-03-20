@@ -16,6 +16,23 @@ let isPaused = false;
 let recognition = null;
 let allArticles = []; // 内置 + 自定义文章
 
+// 拼音缓存
+let pinyinCache = {};
+const PINYIN_CACHE_KEY = 'pinyin_cache';
+
+// 儿童阅读容错配置
+let readingConfig = {
+    slowMode: false,
+    hintMode: true,
+    retryEnabled: true,
+    recognitionTimeout: 8000, // 8秒识别窗口
+    waitBetweenChars: 500, // 字间等待时间
+    maxRetries: 3 // 最大重试次数
+};
+
+// 当前字的重试计数
+let currentCharRetries = 0;
+
 // 预置文章库
 const builtinArticles = [
     { id: 1, title: '咏鹅', author: '骆宾王', content: '鹅鹅鹅，曲项向天歌。白毛浮绿水，红掌拨清波。', level: 'easy' },
@@ -28,8 +45,8 @@ const builtinArticles = [
     { id: 8, title: '三字经（节选）', content: '人之初，性本善。性相近，习相远。苟不教，性乃迁。教之道，贵以专。', level: 'medium' }
 ];
 
-// 拼音字典（扩展版）
-const pinyinDict = {
+// 拼音字典（扩展版）- 作为本地回退
+const localPinyinDict = {
     '鹅': 'é', '曲': 'qū', '项': 'xiàng', '向': 'xiàng', '天': 'tiān', '歌': 'gē',
     '白': 'bái', '毛': 'máo', '浮': 'fú', '绿': 'lǜ', '水': 'shuǐ', '红': 'hóng',
     '掌': 'zhǎng', '拨': 'bō', '清': 'qīng', '波': 'bō', '床': 'chuáng', '前': 'qián',
@@ -56,18 +73,17 @@ const pinyinDict = {
     // 更多常用字
     '大': 'dà', '的': 'de', '是': 'shì', '了': 'le', '在': 'zài', '有': 'yǒu',
     '和': 'hé', '这': 'zhè', '那': 'nà', '个': 'gè', '们': 'men', '说': 'shuō',
-    '要': 'yào', '去': 'qù', '到': 'dào', '看': 'kàn', '好': 'hǎo', '很': 'hěn',
+    '去': 'qù', '到': 'dào', '好': 'hǎo', '很': 'hěn',
     '都': 'dōu', '就': 'jiù', '可': 'kě', '也': 'yě', '能': 'néng', '对': 'duì',
     '着': 'zhe', '过': 'guò', '给': 'gěi', '但': 'dàn', '还': 'hái', '自': 'zì',
     '让': 'ràng', '从': 'cóng', '才': 'cái', '用': 'yòng', '想': 'xiǎng', '只': 'zhǐ',
-    '最': 'zuì', '再': 'zài', '现': 'xiàn', '比': 'bǐ', '当': 'dāng', '没': 'méi',
+    '最': 'zuì', '再': 'zài', '现': 'xiàn', '比': 'bǐ', '没': 'méi',
     '被': 'bèi', '已': 'yǐ', '真': 'zhēn', '新': 'xīn', '年': 'nián', '得': 'dé',
     '出': 'chū', '起': 'qǐ', '会': 'huì', '后': 'hòu', '作': 'zuò', '里': 'lǐ',
     '家': 'jiā', '心': 'xīn', '面': 'miàn', '打': 'dǎ', '长': 'zhǎng', '方': 'fāng',
     '成': 'chéng', '什': 'shén', '么': 'me', '名': 'míng', '同': 'tóng', '五': 'wǔ',
     '六': 'liù', '七': 'qī', '八': 'bā', '九': 'jiǔ', '十': 'shí', '你': 'nǐ',
-    '他': 'tā', '她': 'tā', '它': 'tā', '们': 'men', '得': 'de', '地': 'de',
-    '着': 'zhe', '过': 'guo', '吧': 'ba', '吗': 'ma', '呢': 'ne', '啊': 'a'
+    '他': 'tā', '她': 'tā', '它': 'tā', '吧': 'ba', '吗': 'ma', '呢': 'ne', '啊': 'a'
 };
 
 // 形近字映射表（用于容错）
@@ -97,12 +113,107 @@ const similarChars = {
 let recognitionBuffer = '';
 let lastRecognitionTime = 0;
 
+// 初始化拼音缓存
+function initPinyinCache() {
+    try {
+        const cached = localStorage.getItem(PINYIN_CACHE_KEY);
+        if (cached) {
+            pinyinCache = JSON.parse(cached);
+            console.log('拼音缓存已加载:', Object.keys(pinyinCache).length, '个字');
+        }
+    } catch (e) {
+        console.error('加载拼音缓存失败:', e);
+        pinyinCache = {};
+    }
+}
+
+// 保存拼音缓存
+function savePinyinCache() {
+    try {
+        localStorage.setItem(PINYIN_CACHE_KEY, JSON.stringify(pinyinCache));
+    } catch (e) {
+        console.error('保存拼音缓存失败:', e);
+    }
+}
+
+// 获取拼音（带缓存和网络查询）
+async function getPinyin(char) {
+    // 1. 先查缓存
+    if (pinyinCache[char]) {
+        return pinyinCache[char];
+    }
+
+    // 2. 查本地字典
+    if (localPinyinDict[char]) {
+        pinyinCache[char] = localPinyinDict[char];
+        savePinyinCache();
+        return localPinyinDict[char];
+    }
+
+    // 3. 尝试从服务器获取
+    try {
+        const response = await fetch(`${API_BASE}/pinyin/${encodeURIComponent(char)}`);
+        const data = await response.json();
+        if (data.success && data.data.pinyin) {
+            pinyinCache[char] = data.data.pinyin;
+            savePinyinCache();
+            return data.data.pinyin;
+        }
+    } catch (e) {
+        console.error('获取拼音失败:', e);
+    }
+
+    // 4. 尝试使用在线API（pinyin-api.com）
+    try {
+        const pinyin = await fetchPinyinFromAPI(char);
+        if (pinyin) {
+            pinyinCache[char] = pinyin;
+            savePinyinCache();
+            return pinyin;
+        }
+    } catch (e) {
+        console.error('网络查询拼音失败:', e);
+    }
+
+    return '';
+}
+
+// 从网络API获取拼音
+async function fetchPinyinFromAPI(char) {
+    try {
+        // 使用pinyin-pro的免费API或类似服务
+        // 这里使用一个简单的方法：通过汉典或类似服务
+        // 由于是跨域请求，我们使用一个简单的近似方法
+        
+        // 尝试使用在线拼音服务
+        const response = await fetch(`https://v.api.aa1.cn/api/api-pinyin/pinyin.php?msg=${encodeURIComponent(char)}&type=text`, {
+            method: 'GET',
+            mode: 'cors'
+        });
+        
+        if (response.ok) {
+            const text = await response.text();
+            // 清理返回的拼音
+            const pinyin = text.trim().replace(/[\d\s]/g, '');
+            if (pinyin && pinyin.length > 0) {
+                return pinyin;
+            }
+        }
+    } catch (e) {
+        console.log('在线拼音API失败，使用备用方案');
+    }
+    
+    return '';
+}
+
 // 初始化
-document.addEventListener('DOMContentLoaded', () => {
+ document.addEventListener('DOMContentLoaded', () => {
+    initPinyinCache();
     loadAllArticles();
     initSpeechRecognition();
     initSpeedSlider();
     initAddArticleModal();
+    initReadingControls();
 
     // 检查是否有生成的文章
     const urlParams = new URLSearchParams(window.location.search);
@@ -110,6 +221,80 @@ document.addEventListener('DOMContentLoaded', () => {
         loadGeneratedArticle();
     }
 });
+
+// 初始化阅读控制面板
+function initReadingControls() {
+    // 慢速模式切换
+    const slowModeBtn = document.getElementById('slowModeBtn');
+    if (slowModeBtn) {
+        slowModeBtn.addEventListener('click', () => {
+            readingConfig.slowMode = !readingConfig.slowMode;
+            slowModeBtn.classList.toggle('active', readingConfig.slowMode);
+            slowModeBtn.textContent = readingConfig.slowMode ? '🐢 慢速模式' : '🐇 正常模式';
+            readingConfig.waitBetweenChars = readingConfig.slowMode ? 1500 : 500;
+        });
+    }
+
+    // 提示模式切换
+    const hintModeBtn = document.getElementById('hintModeBtn');
+    if (hintModeBtn) {
+        hintModeBtn.addEventListener('click', () => {
+            readingConfig.hintMode = !readingConfig.hintMode;
+            hintModeBtn.classList.toggle('active', readingConfig.hintMode);
+            hintModeBtn.textContent = readingConfig.hintMode ? '💡 提示开启' : '💡 提示关闭';
+        });
+    }
+
+    // 跳过按钮
+    const skipBtn = document.getElementById('skipBtn');
+    if (skipBtn) {
+        skipBtn.addEventListener('click', skipCurrentChar);
+    }
+}
+
+// 跳过当前字
+function skipCurrentChar() {
+    if (!isReading || currentIndex >= charElements.length) return;
+
+    const char = charElements[currentIndex]?.dataset?.char;
+    if (char) {
+        markWrong(currentIndex, '跳过');
+        currentIndex++;
+        currentCharRetries = 0;
+        
+        if (currentIndex >= charElements.length) {
+            finishReading();
+        } else {
+            highlightCurrent();
+            updateProgress();
+        }
+    }
+}
+
+// 显示字的提示（拼音+发音）
+function showCharHint(index) {
+    const char = charElements[index]?.dataset?.char;
+    if (!char) return;
+
+    // 播放发音
+    speakChar(char);
+
+    // 显示拼音提示
+    getPinyin(char).then(pinyin => {
+        const hint = document.getElementById('charHint');
+        if (hint) {
+            hint.innerHTML = `
+                <div class="hint-popup">
+                    <span class="hint-char">${char}</span>
+                    <span class="hint-pinyin">${pinyin || '...'}</span>
+                    <button onclick="speakChar('${char}')">🔊</button>
+                </div>
+            `;
+            hint.classList.remove('hidden');
+            setTimeout(() => hint.classList.add('hidden'), 3000);
+        }
+    });
+}
 
 // 加载生成的文章
 function loadGeneratedArticle() {
@@ -162,7 +347,7 @@ function initArticleList() {
     `).join('');
 }
 
-// 初始化语音识别 - 使用更高级的配置
+// 初始化语音识别 - 使用更高级的配置（儿童优化版）
 function initSpeechRecognition() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -173,16 +358,44 @@ function initSpeechRecognition() {
     }
 
     recognition = new SpeechRecognition();
+    
+    // 儿童阅读优化配置
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = 'zh-CN';
-
-    // 优化识别参数
-    recognition.maxAlternatives = 3; // 获取多个候选结果
+    recognition.maxAlternatives = 5; // 增加候选结果数量
+    
+    // 更宽容的识别参数（如果浏览器支持）
+    if ('speechRecognitionThreshold' in recognition) {
+        recognition.speechRecognitionThreshold = 0.3; // 降低识别阈值
+    }
 
     recognition.onresult = handleSpeechResult;
     recognition.onerror = handleSpeechError;
     recognition.onend = handleSpeechEnd;
+    
+    // 增加语音开始检测
+    recognition.onstart = () => {
+        console.log('语音识别已启动');
+        updateStatus('listening', '🎤 请大声朗读...');
+    };
+    
+    // 增加语音结束检测（长停顿）
+    recognition.onspeechend = () => {
+        console.log('语音输入结束（检测到停顿）');
+        if (isReading && !isPaused) {
+            // 给儿童更多时间，不立即重启
+            setTimeout(() => {
+                if (isReading && !isPaused) {
+                    try {
+                        recognition.start();
+                    } catch (e) {
+                        console.log('重启识别失败:', e);
+                    }
+                }
+            }, readingConfig.slowMode ? 2000 : 1000);
+        }
+    };
 }
 
 // 初始化速度滑块
@@ -232,7 +445,7 @@ function selectArticle(id) {
     document.getElementById('startBtn').disabled = false;
 }
 
-// 渲染文章
+// 渲染文章（添加点击提示功能）
 function renderArticle(content) {
     const container = document.getElementById('articleContent');
     charElements = [];
@@ -245,7 +458,12 @@ function renderArticle(content) {
         if (char === '\n') {
             html += '<br>';
         } else {
-            html += `<span class="char ${isPunct ? 'punct' : ''}" data-index="${i}" data-char="${char}">${char}</span>`;
+            // 添加点击事件用于提示模式
+            html += `<span class="char ${isPunct ? 'punct' : ''}" 
+                data-index="${i}" 
+                data-char="${char}"
+                onclick="onCharClick(${i}, '${char}')"
+                title="点击看拼音/听发音">${char}</span>`;
         }
     }
 
@@ -256,6 +474,16 @@ function renderArticle(content) {
 
     // 更新进度
     updateProgress();
+}
+
+// 字符点击处理
+function onCharClick(index, char) {
+    if (!isReading) return;
+    
+    // 只有当前字或附近的字可以点击查看提示
+    if (readingConfig.hintMode && Math.abs(index - currentIndex) <= 2) {
+        showCharHint(index);
+    }
 }
 
 // 开始朗读
@@ -277,10 +505,12 @@ function startReading() {
     wrongCount = 0;
     errorWords = [];
     recognitionBuffer = '';
+    currentCharRetries = 0;
 
     // 更新UI
     document.getElementById('startBtn').classList.add('hidden');
     document.getElementById('pauseBtn').classList.remove('hidden');
+    document.getElementById('skipBtn').classList.remove('hidden');
     document.getElementById('statusIndicator').classList.remove('hidden');
     document.getElementById('resultArea').classList.add('hidden');
     document.getElementById('saveBtn').classList.add('hidden');
@@ -331,6 +561,7 @@ function resetReading() {
     wrongCount = 0;
     errorWords = [];
     recognitionBuffer = '';
+    currentCharRetries = 0;
 
     // 停止识别
     if (recognition) {
@@ -346,6 +577,7 @@ function resetReading() {
     document.getElementById('startBtn').disabled = !currentArticle;
     document.getElementById('pauseBtn').classList.add('hidden');
     document.getElementById('resumeBtn').classList.add('hidden');
+    document.getElementById('skipBtn').classList.add('hidden');
     document.getElementById('statusIndicator').classList.add('hidden');
     document.getElementById('resultArea').classList.add('hidden');
     document.getElementById('saveBtn').classList.add('hidden');
@@ -354,7 +586,7 @@ function resetReading() {
     updateProgress();
 }
 
-// 处理语音识别结果 - 改进版
+// 处理语音识别结果 - 改进版（儿童容错）
 function handleSpeechResult(event) {
     const results = event.results;
     const now = Date.now();
@@ -395,14 +627,13 @@ function handleSpeechResult(event) {
 
 // 显示临时结果（视觉反馈）
 function showInterimResult(text) {
-    // 可以在这里添加实时反馈
     const statusText = document.getElementById('statusText');
     if (statusText && isReading) {
-        statusText.textContent = '🎤 识别中: ' + text.slice(-10);
+        statusText.textContent = '🎤 识别中: ' + text.slice(-15);
     }
 }
 
-// 高级识别处理 - 使用多种算法提高准确度
+// 高级识别处理 - 使用多种算法提高准确度（儿童容错版）
 function processRecognizedTextAdvanced(alternatives) {
     if (!currentArticle || currentIndex >= charElements.length) return;
 
@@ -430,25 +661,20 @@ function processRecognizedTextAdvanced(alternatives) {
         }
     }
 
-    // 如果没有匹配成功，尝试强制匹配第一个字符作为错误
-    console.log('没有匹配成功，尝试强制匹配');
-    if (alternatives.length > 0 && currentIndex < charElements.length) {
-        const firstText = alternatives[0].replace(/[，。！？、；：""''（）【】\s]/g, '');
-        if (firstText.length > 0) {
-            const recognizedChar = firstText[0];
-            const expectedChar = charElements[currentIndex]?.dataset?.char;
-            if (expectedChar && recognizedChar !== expectedChar) {
-                console.log('强制标记错误:', expectedChar, '->', recognizedChar);
-                markWrong(currentIndex, recognizedChar);
-                currentIndex++;
-                highlightCurrent();
-                updateProgress();
-            }
+    // 如果没有匹配成功，允许重试（不自动跳过）
+    if (readingConfig.retryEnabled) {
+        currentCharRetries++;
+        console.log('匹配失败，重试次数:', currentCharRetries);
+        
+        if (currentCharRetries >= readingConfig.maxRetries) {
+            // 超过重试次数，提示用户
+            updateStatus('error', '🤔 没听清，请点击字看提示或按跳过');
+            currentCharRetries = 0;
         }
     }
 }
 
-// 尝试匹配文本 - 使用多种策略
+// 尝试匹配文本 - 使用多种策略（儿童容错版）
 function tryMatchText(text) {
     let matchedCount = 0;
 
@@ -487,11 +713,24 @@ function tryMatchText(text) {
                 matchedCount++;
             }
             currentIndex++;
+            currentCharRetries = 0; // 重置重试计数
+            
+            // 慢速模式：等待更长时间
+            if (readingConfig.slowMode && readingConfig.waitBetweenChars > 0) {
+                // 视觉反馈延迟
+            }
         } else {
-            // 不匹配，标记为错误（不管是否 confident）
-            console.log('不匹配，标记错误');
-            markWrong(currentIndex, recognizedChar);
-            currentIndex++;
+            // 不匹配，根据配置决定是否标记为错误
+            if (!readingConfig.retryEnabled || currentCharRetries >= readingConfig.maxRetries - 1) {
+                console.log('不匹配，标记错误');
+                markWrong(currentIndex, recognizedChar);
+                currentIndex++;
+                currentCharRetries = 0;
+            } else {
+                // 允许重试，不推进
+                console.log('不匹配，等待重试');
+                return false;
+            }
         }
 
         // 检查是否完成
@@ -521,8 +760,8 @@ function checkMatchAdvanced(expected, recognized) {
     }
 
     // 2. 拼音匹配（容错声调）- 算正确但记录到错字本
-    const expectedPinyin = pinyinDict[expected];
-    const recognizedPinyin = pinyinDict[recognized];
+    const expectedPinyin = localPinyinDict[expected];
+    const recognizedPinyin = localPinyinDict[recognized];
 
     if (expectedPinyin && recognizedPinyin) {
         // 去除声调比较
@@ -651,7 +890,7 @@ function markWrong(index, recognized) {
     errorWords.push({
         expected: expected,
         recognized: recognized || '未识别',
-        pinyin: pinyinDict[expected] || ''
+        pinyin: localPinyinDict[expected] || ''
     });
 
     // 添加到错字本
@@ -661,36 +900,9 @@ function markWrong(index, recognized) {
     updateStats();
 }
 
-// 测试错字本功能
-function testAddMistake() {
-    console.log('>>> 测试错字本功能');
-
-    // 测试添加一个错字
-    const testChar = '测';
-    const testRecognized = '读错';
-
-    console.log('添加测试错字:', testChar, '->', testRecognized);
-    addToMistakeBook(testChar, testRecognized);
-
-    // 验证是否保存成功
-    const saved = localStorage.getItem('mistakeBook');
-    console.log('保存的数据:', saved);
-
-    alert('测试错字已添加！请去错字本查看。');
-}
-
-// 添加到错字本
+// 添加到错字本（优先使用API，回退到localStorage）
 function addToMistakeBook(char, recognized) {
     console.log('>>> addToMistakeBook 被调用:', char, recognized);
-
-    // 检查 localStorage 是否可用
-    try {
-        localStorage.setItem('__test__', 'test');
-        localStorage.removeItem('__test__');
-    } catch (e) {
-        console.error('>>> localStorage 不可用:', e);
-        return;
-    }
 
     // 清理输入字符
     const cleanChar = char ? String(char).trim() : '';
@@ -703,33 +915,77 @@ function addToMistakeBook(char, recognized) {
     const firstChar = cleanChar.charAt(0);
     console.log('>>> 处理字符:', firstChar);
 
+    // 获取当前小朋友ID
+    const kidId = localStorage.getItem('currentKidId');
+    
+    // 准备错字数据
+    const mistakeData = {
+        char: firstChar,
+        pinyin: localPinyinDict[firstChar] || '',
+        recognized: recognized || '未识别',
+        source: currentArticle ? currentArticle.title : '未知'
+    };
+
+    // 优先尝试使用API保存
+    if (kidId) {
+        saveMistakeToAPI(kidId, mistakeData);
+    } else {
+        // 没有小朋友ID，保存到localStorage
+        saveMistakeToLocalStorage(mistakeData);
+    }
+}
+
+// 通过API保存错字
+async function saveMistakeToAPI(kidId, mistakeData) {
+    try {
+        const response = await fetch(`${API_BASE}/mistakes`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                kid_id: parseInt(kidId),
+                char: mistakeData.char,
+                pinyin: mistakeData.pinyin,
+                recognized: mistakeData.recognized,
+                source: mistakeData.source
+            })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            console.log('>>> 错字已通过API保存:', result.data);
+        } else {
+            console.error('>>> API保存失败，回退到localStorage:', result.message);
+            saveMistakeToLocalStorage(mistakeData);
+        }
+    } catch (error) {
+        console.error('>>> API请求失败，回退到localStorage:', error);
+        saveMistakeToLocalStorage(mistakeData);
+    }
+}
+
+// 保存到localStorage（回退方案）
+function saveMistakeToLocalStorage(mistakeData) {
     try {
         const key = 'mistakeBook';
-        let existing = null;
-        try {
-            existing = localStorage.getItem(key);
-        } catch (e) {
-            console.error('>>> 读取 localStorage 失败:', e);
-        }
-        console.log('>>> 现有错字本数据:', existing);
-
+        let existing = localStorage.getItem(key);
         const mistakes = existing ? JSON.parse(existing) : [];
-        const found = mistakes.find(m => m.char === firstChar);
+        
+        const found = mistakes.find(m => m.char === mistakeData.char);
 
         if (found) {
             found.count = (found.count || 0) + 1;
-            found.recognized = recognized || '未识别';
+            found.recognized = mistakeData.recognized;
             found.lastWrong = new Date().toISOString();
             if (found.status === 'mastered') {
                 found.status = 'practicing';
             }
-            console.log('>>> 更新错字:', firstChar, '次数:', found.count);
+            console.log('>>> 更新错字（localStorage）:', mistakeData.char, '次数:', found.count);
         } else {
             const newMistake = {
-                char: firstChar,
-                pinyin: pinyinDict[firstChar] || '',
-                recognized: recognized || '未识别',
-                source: currentArticle ? currentArticle.title : '未知',
+                char: mistakeData.char,
+                pinyin: mistakeData.pinyin,
+                recognized: mistakeData.recognized,
+                source: mistakeData.source,
                 count: 1,
                 reviewCount: 0,
                 status: 'new',
@@ -737,30 +993,101 @@ function addToMistakeBook(char, recognized) {
                 lastWrong: new Date().toISOString()
             };
             mistakes.push(newMistake);
-            console.log('>>> 新增错字:', firstChar, newMistake);
+            console.log('>>> 新增错字（localStorage）:', mistakeData.char);
         }
 
-        try {
-            localStorage.setItem(key, JSON.stringify(mistakes));
-            console.log('>>> 错字本已保存，当前共', mistakes.length, '个字');
-        } catch (saveError) {
-            console.error('>>> 保存到 localStorage 失败:', saveError);
-            if (saveError.name === 'QuotaExceededError') {
-                alert('存储空间已满，无法保存错字');
-            }
-            return;
-        }
-
-        // 验证保存成功
-        try {
-            const saved = localStorage.getItem(key);
-            console.log('>>> 验证保存结果:', saved);
-        } catch (verifyError) {
-            console.error('>>> 验证保存失败:', verifyError);
-        }
+        localStorage.setItem(key, JSON.stringify(mistakes));
+        console.log('>>> 错字本已保存到localStorage');
     } catch (error) {
         console.error('>>> 保存错字失败:', error);
     }
+}
+
+// 优化后的发音函数（中文+好听+适合儿童）
+function speakChar(char) {
+    if (!char) return;
+
+    // 取消之前的发音
+    speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(char);
+    
+    // 儿童优化配置
+    utterance.lang = 'zh-CN';
+    utterance.rate = 0.75; // 更慢的语速，适合儿童跟读
+    utterance.pitch = 1.15; // 稍微提高音调，更亲切
+    utterance.volume = 1.0; // 最大音量
+
+    // 等待语音列表加载并选择最佳中文语音
+    const selectVoice = () => {
+        const voices = speechSynthesis.getVoices();
+        
+        // 语音选择优先级：
+        // 1. Google 中文女声
+        // 2. Microsoft 中文女声
+        // 3. 任何中文语音
+        // 4. 默认语音
+        let selectedVoice = null;
+        
+        // 优先选择 Google 中文女声
+        selectedVoice = voices.find(v => 
+            v.name.includes('Google') && v.name.includes('中文') && v.name.includes('女')
+        );
+        
+        // 其次 Microsoft 中文女声
+        if (!selectedVoice) {
+            selectedVoice = voices.find(v => 
+                v.name.includes('Microsoft') && v.lang.includes('zh') && 
+                (v.name.includes('女') || v.name.includes('Yaoyao') || v.name.includes('Huihui'))
+            );
+        }
+        
+        // 然后任何中文女声
+        if (!selectedVoice) {
+            selectedVoice = voices.find(v => 
+                v.lang.includes('zh') && (v.name.includes('女') || v.gender === 'female')
+            );
+        }
+        
+        // 最后任何中文语音
+        if (!selectedVoice) {
+            selectedVoice = voices.find(v => v.lang.includes('zh') || v.lang.includes('CN'));
+        }
+
+        if (selectedVoice) {
+            utterance.voice = selectedVoice;
+            console.log('选择语音:', selectedVoice.name);
+        }
+    };
+
+    // 如果语音列表已加载，直接选择
+    if (speechSynthesis.getVoices().length > 0) {
+        selectVoice();
+    } else {
+        // 等待语音列表加载
+        speechSynthesis.addEventListener('voiceschanged', selectVoice, { once: true });
+    }
+
+    // 添加事件监听
+    utterance.onstart = () => {
+        console.log('开始发音:', char);
+    };
+    
+    utterance.onerror = (e) => {
+        console.error('发音错误:', e);
+        // 错误时尝试用默认设置重试
+        setTimeout(() => {
+            const retry = new SpeechSynthesisUtterance(char);
+            retry.lang = 'zh-CN';
+            retry.rate = 0.8;
+            speechSynthesis.speak(retry);
+        }, 100);
+    };
+
+    // 确保语音已准备好再播放
+    setTimeout(() => {
+        speechSynthesis.speak(utterance);
+    }, 50);
 }
 
 // 高亮当前字
@@ -779,12 +1106,17 @@ function highlightCurrent() {
             behavior: 'smooth',
             block: 'center'
         });
+        
+        // 提示模式下，如果重试多次，自动显示提示
+        if (readingConfig.hintMode && currentCharRetries >= 2) {
+            showCharHint(currentIndex);
+        }
     }
 }
 
 // 显示拼音弹窗
 function showPinyinPopup(char) {
-    const pinyin = pinyinDict[char];
+    const pinyin = localPinyinDict[char];
     if (!pinyin) return;
 
     // 移除旧的弹窗
@@ -842,6 +1174,7 @@ function finishReading() {
     // 更新UI
     document.getElementById('pauseBtn').classList.add('hidden');
     document.getElementById('resumeBtn').classList.add('hidden');
+    document.getElementById('skipBtn').classList.add('hidden');
     updateStatus('success', '✅ 阅读完成！');
 
     // 显示结果
@@ -937,7 +1270,7 @@ function handleSpeechError(event) {
             updateStatus('error', '识别出错，请重试');
     }
 
-    // 自动重启识别
+    // 自动重启识别（更长的延迟给儿童）
     if (isReading && !isPaused) {
         setTimeout(() => {
             try {
@@ -945,7 +1278,7 @@ function handleSpeechError(event) {
             } catch (e) {
                 console.log('Auto restart failed:', e);
             }
-        }, 1000);
+        }, readingConfig.slowMode ? 2000 : 1000);
     }
 }
 
@@ -959,7 +1292,7 @@ function handleSpeechEnd() {
             } catch (e) {
                 console.log('Restart failed:', e);
             }
-        }, 500);
+        }, readingConfig.slowMode ? 1000 : 500);
     }
 }
 
@@ -1028,3 +1361,7 @@ function addCustomArticle() {
 
     alert('文章添加成功！');
 }
+
+// 导出函数供HTML调用
+window.onCharClick = onCharClick;
+window.skipCurrentChar = skipCurrentChar;

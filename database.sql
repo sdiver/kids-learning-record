@@ -68,6 +68,25 @@ CREATE TABLE IF NOT EXISTS points (
     FOREIGN KEY (kid_id) REFERENCES kids(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='积分记录表';
 
+-- 6. 错字本表
+CREATE TABLE IF NOT EXISTS mistakes (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    kid_id INT NOT NULL COMMENT '小朋友ID',
+    char VARCHAR(10) NOT NULL COMMENT '错字',
+    pinyin VARCHAR(20) COMMENT '拼音',
+    recognized VARCHAR(50) COMMENT '识别成的字',
+    source VARCHAR(100) COMMENT '来源文章',
+    count INT DEFAULT 1 COMMENT '错误次数',
+    review_count INT DEFAULT 0 COMMENT '复习次数',
+    status ENUM('new', 'practicing', 'mastered') DEFAULT 'new' COMMENT '状态：新错字/练习中/已掌握',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_wrong TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '最后一次错误时间',
+    last_reviewed TIMESTAMP NULL COMMENT '最后一次复习时间',
+    mastered_at TIMESTAMP NULL COMMENT '掌握时间',
+    FOREIGN KEY (kid_id) REFERENCES kids(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_char_per_kid (kid_id, char)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='错字本表';
+
 -- 插入示例数据
 
 -- 示例小朋友
