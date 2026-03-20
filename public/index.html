@@ -1282,6 +1282,684 @@
         `;
         document.head.appendChild(style);
 
+        // ========== 修改1: 模态框关闭确认和草稿自动保存 ==========
+        const DRAFT_KEY = 'learning_record_draft';
+        let hasUnsavedData = false;
+
+        // 监听表单变化
+        const formInputs = ['duration', 'content', 'notes'];
+        formInputs.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('input', () => {
+                    hasUnsavedData = true;
+                    autoSaveDraft();
+                });
+            }
+        });
+
+        // 星星评分变化也触发草稿保存
+        stars.forEach(star => {
+            star.addEventListener('click', () => {
+                hasUnsavedData = true;
+                autoSaveDraft();
+            });
+        });
+
+        // 自动保存草稿
+        function autoSaveDraft() {
+            const draft = {
+                subjectId: document.querySelector('.subject-option.selected')?.dataset.subject,
+                date: document.getElementById('learningDate').value,
+                duration: document.getElementById('duration').value,
+                content: document.getElementById('content').value,
+                performance: currentRating,
+                mood: document.getElementById('mood').value,
+                notes: document.getElementById('notes').value,
+                kidId: currentKid,
+                savedAt: new Date().toISOString()
+            };
+            localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+        }
+
+        // 加载草稿
+        function loadDraft() {
+            const draft = localStorage.getItem(DRAFT_KEY);
+            if (!draft) return;
+
+            try {
+                const data = JSON.parse(draft);
+                // 只加载当前小朋友的草稿
+                if (data.kidId === currentKid) {
+                    // 恢复表单数据
+                    if (data.duration) document.getElementById('duration').value = data.duration;
+                    if (data.content) document.getElementById('content').value = data.content;
+                    if (data.notes) document.getElementById('notes').value = data.notes;
+                    if (data.date) document.getElementById('learningDate').value = data.date;
+                    if (data.mood) document.getElementById('mood').value = data.mood;
+                    if (data.performance) {
+                        currentRating = parseInt(data.performance);
+                        updateStarDisplay(currentRating);
+                        performanceLabel.textContent = performanceLabels[currentRating];
+                    }
+
+                    // 恢复科目选择
+                    if (data.subjectId) {
+                        document.querySelectorAll('.subject-option').forEach(o => {
+                            o.classList.toggle('selected', o.dataset.subject === data.subjectId);
+                        });
+                    }
+
+                    hasUnsavedData = !!(data.duration || data.content || data.notes);
+                }
+            } catch (e) {
+                console.error('加载草稿失败:', e);
+            }
+        }
+
+        // 清除草稿
+        function clearDraft() {
+            localStorage.removeItem(DRAFT_KEY);
+            hasUnsavedData = false;
+        }
+
+        // 模态框关闭确认
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                if (hasUnsavedData) {
+                    if (confirm('🤔 确定放弃编辑吗？未保存的内容将丢失。')) {
+                        modal.classList.remove('show');
+                        clearDraft();
+                    }
+                } else {
+                    modal.classList.remove('show');
+                }
+            }
+        });
+
+        // 修改取消按钮
+        cancelBtn.addEventListener('click', () => {
+            if (hasUnsavedData) {
+                if (confirm('🤔 确定放弃编辑吗？未保存的内容将丢失。')) {
+                    modal.classList.remove('show');
+                    clearDraft();
+                }
+            } else {
+                modal.classList.remove('show');
+            }
+        });
+
+        // ========== 修改2: 星星评分反馈增强 ==========
+        // 添加星星动画样式
+        const starAnimationStyle = document.createElement('style');
+        starAnimationStyle.textContent = `
+            @keyframes starPulse {
+                0% { transform: scale(1); }
+                50% { transform: scale(1.4); }
+                100% { transform: scale(1); }
+            }
+            @keyframes starGlow {
+                0%, 100% { text-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
+                50% { text-shadow: 0 0 25px rgba(255, 215, 0, 0.9), 0 0 35px rgba(255, 215, 0, 0.6); }
+            }
+            .star.animate {
+                animation: starPulse 0.4s ease, starGlow 0.8s ease;
+            }
+            .performance-label {
+                transition: all 0.3s ease;
+                padding: 8px 15px;
+                border-radius: 20px;
+                background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+                display: inline-block;
+                margin-top: 10px;
+            }
+        `;
+        document.head.appendChild(starAnimationStyle);
+
+        // 重写星星点击事件
+        stars.forEach((star, index) => {
+            star.addEventListener('click', function() {
+                currentRating = parseInt(this.dataset.star);
+                updateStarDisplay(currentRating);
+
+                // 添加动画效果
+                for (let i = 0; i < currentRating; i++) {
+                    setTimeout(() => {
+                        stars[i].classList.add('animate');
+                        setTimeout(() => stars[i].classList.remove('animate'), 800);
+                    }, i * 100);
+                }
+
+                // 显示反馈文字
+                performanceLabel.textContent = performanceLabels[currentRating];
+                performanceLabel.style.transform = 'scale(1.05)';
+                setTimeout(() => {
+                    performanceLabel.style.transform = 'scale(1)';
+                }, 200);
+
+                hasUnsavedData = true;
+                autoSaveDraft();
+            });
+        });
+
+        // ========== 修改3: 快速填充按钮优化 ==========
+        // 优化按钮布局为两行三列
+        const quickFillOptimizedStyle = document.createElement('style');
+        quickFillOptimizedStyle.textContent = `
+            .quick-fill {
+                margin-bottom: 15px;
+            }
+            .quick-fill-grid {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 10px;
+            }
+            .quick-fill-btn {
+                padding: 10px 8px;
+                border: 2px solid #e0e0e0;
+                background: white;
+                border-radius: 12px;
+                font-size: 0.9rem;
+                cursor: pointer;
+                transition: all 0.2s;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 4px;
+            }
+            .quick-fill-btn:hover {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                border-color: #667eea;
+                transform: scale(1.05);
+            }
+            .quick-fill-btn .icon {
+                font-size: 1.3rem;
+            }
+            .quick-fill-btn .name {
+                font-size: 0.8rem;
+            }
+        `;
+        document.head.appendChild(quickFillOptimizedStyle);
+
+        // 重写快速填充按钮功能
+        function addQuickFillButtons() {
+            const contentGroup = document.querySelector('.form-group:has(#content)');
+            if (!contentGroup || document.querySelector('.quick-fill')) return;
+
+            const quickFillDiv = document.createElement('div');
+            quickFillDiv.className = 'quick-fill';
+            quickFillDiv.innerHTML = `
+                <div style="font-size: 0.85rem; color: #888; margin-bottom: 10px;">⚡ 快速填充：</div>
+                <div class="quick-fill-grid">
+                    ${quickFillTemplates.map(t => `
+                        <button type="button" class="quick-fill-btn" data-content="${t.content}" data-duration="${t.duration}">
+                            <span class="icon">${t.icon}</span>
+                            <span class="name">${t.name}</span>
+                        </button>
+                    `).join('')}
+                </div>
+            `;
+
+            contentGroup.insertBefore(quickFillDiv, contentGroup.querySelector('textarea'));
+
+            // 绑定点击事件 - 添加覆盖确认
+            quickFillDiv.querySelectorAll('.quick-fill-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const contentEl = document.getElementById('content');
+                    const durationEl = document.getElementById('duration');
+                    const newContent = this.dataset.content;
+                    const newDuration = this.dataset.duration;
+
+                    // 检查是否已有内容
+                    if (contentEl.value && contentEl.value !== newContent) {
+                        if (!confirm('⚠️ 当前内容将被覆盖，确定继续吗？')) {
+                            return;
+                        }
+                    }
+
+                    // 填充内容并高亮
+                    contentEl.value = newContent;
+                    contentEl.style.background = '#fffde7';
+                    setTimeout(() => {
+                        contentEl.style.background = '';
+                        contentEl.style.transition = 'background 0.5s ease';
+                    }, 100);
+                    setTimeout(() => {
+                        contentEl.style.transition = '';
+                    }, 600);
+
+                    contentEl.focus();
+
+                    // 如果时长未填，自动填充
+                    if (!durationEl.value) {
+                        durationEl.value = newDuration;
+                        durationEl.style.background = '#fffde7';
+                        setTimeout(() => durationEl.style.background = '', 500);
+                    }
+
+                    hasUnsavedData = true;
+                    autoSaveDraft();
+                });
+            });
+        }
+
+        // ========== 修改4: 学习记录列表添加筛选和分组 ==========
+        // 添加筛选器样式
+        const filterStyle = document.createElement('style');
+        filterStyle.textContent = `
+            .filter-bar {
+                display: flex;
+                gap: 8px;
+                margin-bottom: 15px;
+                flex-wrap: wrap;
+                padding-bottom: 15px;
+                border-bottom: 1px solid #eee;
+            }
+            .filter-tag {
+                padding: 6px 14px;
+                border-radius: 20px;
+                border: 2px solid #e0e0e0;
+                background: white;
+                cursor: pointer;
+                font-size: 0.85rem;
+                transition: all 0.2s;
+            }
+            .filter-tag:hover {
+                border-color: #667eea;
+            }
+            .filter-tag.active {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                border-color: #667eea;
+            }
+            .date-group {
+                margin-bottom: 15px;
+            }
+            .date-header {
+                font-size: 0.85rem;
+                color: #888;
+                padding: 8px 0;
+                font-weight: 600;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+            .date-header::before {
+                content: '📅';
+            }
+            .record-count {
+                font-size: 0.75rem;
+                color: #aaa;
+                margin-left: auto;
+            }
+        `;
+        document.head.appendChild(filterStyle);
+
+        let currentFilter = 'all';
+        let allRecords = [];
+
+        // 添加筛选器到记录卡片
+        function addFilterBar() {
+            const recordCard = document.querySelector('.card:has(#recordList)');
+            if (!recordCard || recordCard.querySelector('.filter-bar')) return;
+
+            const filterBar = document.createElement('div');
+            filterBar.className = 'filter-bar';
+            filterBar.innerHTML = `
+                <div class="filter-tag active" data-filter="all">📋 全部</div>
+                <div class="filter-tag" data-filter="语文">📚 语文</div>
+                <div class="filter-tag" data-filter="数学">🔢 数学</div>
+                <div class="filter-tag" data-filter="英语">🔤 英语</div>
+                <div class="filter-tag" data-filter="阅读">📖 阅读</div>
+                <div class="filter-tag" data-filter="美术">🎨 美术</div>
+            `;
+
+            const cardTitle = recordCard.querySelector('.card-title');
+            cardTitle.after(filterBar);
+
+            // 绑定筛选事件
+            filterBar.querySelectorAll('.filter-tag').forEach(tag => {
+                tag.addEventListener('click', function() {
+                    filterBar.querySelectorAll('.filter-tag').forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    currentFilter = this.dataset.filter;
+                    renderRecordsWithFilter();
+                });
+            });
+        }
+
+        // 按日期分组渲染记录
+        function renderRecordsWithFilter() {
+            const container = document.getElementById('recordList');
+            if (!allRecords.length) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📝</div>
+                        <p>还没有学习记录</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // 筛选记录
+            let filteredRecords = allRecords;
+            if (currentFilter !== 'all') {
+                filteredRecords = allRecords.filter(r => r.subject_name === currentFilter);
+            }
+
+            if (!filteredRecords.length) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🔍</div>
+                        <p>该科目暂无记录</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // 按日期分组
+            const grouped = {};
+            filteredRecords.forEach(record => {
+                const date = record.learning_date;
+                if (!grouped[date]) grouped[date] = [];
+                grouped[date].push(record);
+            });
+
+            // 按日期降序排序
+            const sortedDates = Object.keys(grouped).sort((a, b) => new Date(b) - new Date(a));
+
+            // 渲染分组
+            container.innerHTML = sortedDates.map(date => {
+                const records = grouped[date];
+                const dateStr = formatDate(date);
+                return `
+                    <div class="date-group">
+                        <div class="date-header">
+                            ${dateStr}
+                            <span class="record-count">${records.length}条记录</span>
+                        </div>
+                        ${records.map(record => `
+                            <div class="record-item">
+                                <div class="record-subject" style="background: ${record.subject_color || '#f0f0f0'};">${record.subject_icon || '📚'}</div>
+                                <div class="record-info">
+                                    <div class="record-title">${record.subject_name}</div>
+                                    <div class="record-meta">${record.duration}分钟 · ${record.content.substring(0, 30)}${record.content.length > 30 ? '...' : ''}</div>
+                                </div>
+                                <div class="record-stars">${'⭐'.repeat(record.performance || 3)}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 格式化日期
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            const today = new Date();
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+
+            if (dateStr === today.toISOString().split('T')[0]) {
+                return '📅 今天';
+            } else if (dateStr === yesterday.toISOString().split('T')[0]) {
+                return '📅 昨天';
+            } else {
+                return `📅 ${date.getMonth() + 1}月${date.getDate()}日`;
+            }
+        }
+
+        // 重写加载记录函数
+        async function loadRecords(kidId) {
+            try {
+                const res = await fetch(`${API_BASE}/records?kid_id=${kidId}&limit=50`);
+                const data = await res.json();
+
+                allRecords = data.data || [];
+
+                // 添加筛选栏
+                addFilterBar();
+
+                // 渲染记录
+                renderRecordsWithFilter();
+            } catch (error) {
+                console.error('加载学习记录失败:', error);
+            }
+        }
+
+        // ========== 修改5: 儿童模式 ==========
+        // 添加儿童模式样式
+        const kidsModeStyle = document.createElement('style');
+        kidsModeStyle.textContent = `
+            /* 儿童模式样式 */
+            body.kids-mode {
+                font-family: 'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', 'Nunito', 'Microsoft YaHei', sans-serif;
+            }
+            body.kids-mode .header h1 {
+                font-size: 3rem;
+                text-shadow: 3px 3px 0 #ff6b6b, -3px -3px 0 #4ECDC4;
+                animation: titleBounce 2s ease infinite;
+            }
+            @keyframes titleBounce {
+                0%, 100% { transform: rotate(-2deg); }
+                50% { transform: rotate(2deg); }
+            }
+            body.kids-mode .kid-card {
+                border-radius: 25px;
+                border: 4px dashed #FFD93D;
+            }
+            body.kids-mode .kid-card.active {
+                border: 4px solid #ff6b6b;
+                box-shadow: 0 0 20px rgba(255, 107, 107, 0.5);
+            }
+            body.kids-mode .stat-card {
+                border-radius: 25px;
+                background: linear-gradient(135deg, #fff5f5 0%, #fff0f0 100%);
+                border: 3px solid #ff9999;
+            }
+            body.kids-mode .card {
+                border-radius: 25px;
+                border: 3px solid #667eea;
+            }
+            body.kids-mode .record-item {
+                border-radius: 18px;
+                border: 2px dashed #ccc;
+            }
+            body.kids-mode .achievement-item {
+                border-radius: 20px;
+                border: 3px solid #fdcb6e;
+            }
+            body.kids-mode .fab {
+                animation: fabWiggle 3s ease infinite;
+            }
+            @keyframes fabWiggle {
+                0%, 100% { transform: rotate(0deg); }
+                25% { transform: rotate(-5deg); }
+                75% { transform: rotate(5deg); }
+            }
+            body.kids-mode .filter-tag {
+                border-radius: 25px;
+                font-size: 1rem;
+                border-width: 3px;
+            }
+            body.kids-mode .modal-content {
+                border-radius: 30px;
+                border: 4px solid #FFD93D;
+            }
+            body.kids-mode .star {
+                font-size: 2.5rem;
+            }
+            body.kids-mode .performance-label {
+                font-size: 1.1rem;
+                padding: 10px 20px;
+            }
+            body.kids-mode .btn {
+                border-radius: 20px;
+                font-size: 1.1rem;
+            }
+            body.kids-mode .quick-fill-btn {
+                border-radius: 15px;
+                border-width: 3px;
+            }
+        `;
+        document.head.appendChild(kidsModeStyle);
+
+        // 儿童模式切换按钮
+        function addKidsModeToggle() {
+            const header = document.querySelector('.header');
+            if (!header || header.querySelector('.kids-mode-toggle')) return;
+
+            const toggle = document.createElement('button');
+            toggle.className = 'kids-mode-toggle';
+            toggle.innerHTML = '🎈 儿童模式';
+            toggle.style.cssText = `
+                background: linear-gradient(135deg, #ff6b6b 0%, #FFD93D 100%);
+                border: none;
+                padding: 10px 20px;
+                border-radius: 25px;
+                color: white;
+                font-weight: 700;
+                cursor: pointer;
+                font-size: 1rem;
+                margin-top: 15px;
+                box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+                transition: all 0.3s ease;
+            `;
+            toggle.onmouseover = () => toggle.style.transform = 'scale(1.05)';
+            toggle.onmouseout = () => toggle.style.transform = 'scale(1)';
+
+            // 检查localStorage中的设置
+            const isKidsMode = localStorage.getItem('kidsMode') === 'true';
+            if (isKidsMode) {
+                document.body.classList.add('kids-mode');
+                toggle.innerHTML = '👔 家长模式';
+                toggle.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            }
+
+            toggle.addEventListener('click', () => {
+                const isActive = document.body.classList.toggle('kids-mode');
+                localStorage.setItem('kidsMode', isActive);
+
+                if (isActive) {
+                    toggle.innerHTML = '👔 家长模式';
+                    toggle.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                    // 显示儿童模式欢迎提示
+                    showKidsModeWelcome();
+                } else {
+                    toggle.innerHTML = '🎈 儿童模式';
+                    toggle.style.background = 'linear-gradient(135deg, #ff6b6b 0%, #FFD93D 100%)';
+                }
+            });
+
+            header.appendChild(toggle);
+        }
+
+        // 儿童模式欢迎提示
+        function showKidsModeWelcome() {
+            const kid = kidsList.find(k => k.id === currentKid);
+            const kidName = kid ? kid.name : '小朋友';
+
+            // 创建欢迎弹窗
+            const welcomeModal = document.createElement('div');
+            welcomeModal.className = 'modal show';
+            welcomeModal.style.zIndex = '2000';
+            welcomeModal.innerHTML = `
+                <div class="modal-content" style="text-align: center; max-width: 350px;">
+                    <div style="font-size: 4rem; margin-bottom: 15px;">🎉</div>
+                    <h2 style="color: #ff6b6b; margin-bottom: 10px;">欢迎来到儿童模式！</h2>
+                    <p style="color: #666; margin-bottom: 20px;">${kidName}，这里是你专属的学习乐园~</p>
+                    <button class="btn btn-primary" style="width: 100%;">开始探索吧！🚀</button>
+                </div>
+            `;
+            document.body.appendChild(welcomeModal);
+
+            welcomeModal.addEventListener('click', (e) => {
+                if (e.target === welcomeModal || e.target.tagName === 'BUTTON') {
+                    welcomeModal.remove();
+                }
+            });
+        }
+
+        // 初始化儿童模式
+        document.addEventListener('DOMContentLoaded', () => {
+            addKidsModeToggle();
+        });
+
+        // 修改保存成功处理 - 清除草稿
+        saveBtn.addEventListener('click', async () => {
+            const subjectEl = document.querySelector('.subject-option.selected');
+            const subjectId = subjectEl ? subjectEl.dataset.subject : subjectsList[0]?.id;
+            const date = document.getElementById('learningDate').value;
+            const duration = document.getElementById('duration').value;
+            const content = document.getElementById('content').value;
+            const mood = document.getElementById('mood').value;
+            const notes = document.getElementById('notes').value;
+            const performance = currentRating || 3;
+
+            if (!duration || !content) {
+                alert('请填写完整信息');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/records`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        kid_id: currentKid,
+                        subject_id: subjectId,
+                        learning_date: date,
+                        duration: parseInt(duration),
+                        content,
+                        performance,
+                        mood,
+                        notes
+                    })
+                });
+
+                const result = await res.json();
+
+                if (result.success) {
+                    alert(`学习记录保存成功！获得 ${result.data.points_earned} 积分！`);
+                    modal.classList.remove('show');
+
+                    // 刷新数据
+                    await loadStats(currentKid);
+                    await loadRecords(currentKid);
+
+                    // 清空表单并清除草稿
+                    document.getElementById('duration').value = '';
+                    document.getElementById('content').value = '';
+                    document.getElementById('notes').value = '';
+                    currentRating = 0;
+                    updateStarDisplay(0);
+                    performanceLabel.textContent = '点击星星评分';
+                    clearDraft();
+
+                    // 移除学习提示
+                    const oldTip = document.querySelector('.learning-tip');
+                    if (oldTip) oldTip.remove();
+                } else {
+                    alert('保存失败: ' + result.message);
+                }
+            } catch (error) {
+                alert('保存失败，请检查网络连接');
+                console.error(error);
+            }
+        });
+
+        // 修改打开模态框逻辑 - 加载草稿
+        addBtn.addEventListener('click', () => {
+            if (!currentKid) {
+                alert('请先添加小朋友');
+                return;
+            }
+            modal.classList.add('show');
+            loadDraft();
+            setTimeout(addQuickFillButtons, 100);
+        });
+
         // 保存记录
         saveBtn.addEventListener('click', async () => {
             const subjectEl = document.querySelector('.subject-option.selected');
