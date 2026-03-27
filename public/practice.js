@@ -15,47 +15,47 @@ let totalQuestions = 0;
 let maxQuestions = 10;
 let isAnswered = false;
 
-// 拼音题库（含声调练习）
+// 拼音题库（含声调练习）- 添加图片和音频支持
 const pinyinData = {
     easy: [
-        { pinyin: 'bā', chars: ['八', '巴', '吧'], correct: '八', tone: 1 },
-        { pinyin: 'mā', chars: ['妈', '马', '麻'], correct: '妈', tone: 1 },
-        { pinyin: 'bō', chars: ['波', '拨', '播'], correct: '波', tone: 1 },
-        { pinyin: 'mō', chars: ['摸', '模', '摩'], correct: '摸', tone: 1 },
-        { pinyin: 'fēi', chars: ['飞', '非', '菲'], correct: '飞', tone: 1 },
-        { pinyin: 'dà', chars: ['大', '达', '答'], correct: '大', tone: 4 },
-        { pinyin: 'xiǎo', chars: ['小', '晓', '笑'], correct: '小', tone: 3 },
-        { pinyin: 'shǒu', chars: ['手', '首', '守'], correct: '手', tone: 3 },
-        { pinyin: 'kǒu', chars: ['口', '扣', '寇'], correct: '口', tone: 3 },
-        { pinyin: 'ěr', chars: ['耳', '尔', '饵'], correct: '耳', tone: 3 },
-        { pinyin: 'mā ma', chars: ['妈妈', '马麻', '嘛嘛'], correct: '妈妈', tone: '1-0' },
-        { pinyin: 'bà ba', chars: ['爸爸', '罢罢', '吧吧'], correct: '爸爸', tone: '4-0' },
-        { pinyin: 'gē ge', chars: ['哥哥', '歌歌', '格格'], correct: '哥哥', tone: '1-0' },
-        { pinyin: 'jiě jie', chars: ['姐姐', '解解', '结结'], correct: '姐姐', tone: '3-0' }
+        { pinyin: 'bā', chars: ['八', '巴', '吧'], correct: '八', tone: 1, image: '🎱', audio: 'ba1' },
+        { pinyin: 'mā', chars: ['妈', '马', '麻'], correct: '妈', tone: 1, image: '👩', audio: 'ma1' },
+        { pinyin: 'bō', chars: ['波', '拨', '播'], correct: '波', tone: 1, image: '🌊', audio: 'bo1' },
+        { pinyin: 'mō', chars: ['摸', '模', '摩'], correct: '摸', tone: 1, image: '👋', audio: 'mo1' },
+        { pinyin: 'fēi', chars: ['飞', '非', '菲'], correct: '飞', tone: 1, image: '🐦', audio: 'fei1' },
+        { pinyin: 'dà', chars: ['大', '达', '答'], correct: '大', tone: 4, image: '🐘', audio: 'da4' },
+        { pinyin: 'xiǎo', chars: ['小', '晓', '笑'], correct: '小', tone: 3, image: '🐭', audio: 'xiao3' },
+        { pinyin: 'shǒu', chars: ['手', '首', '守'], correct: '手', tone: 3, image: '✋', audio: 'shou3' },
+        { pinyin: 'kǒu', chars: ['口', '扣', '寇'], correct: '口', tone: 3, image: '👄', audio: 'kou3' },
+        { pinyin: 'ěr', chars: ['耳', '尔', '饵'], correct: '耳', tone: 3, image: '👂', audio: 'er3' },
+        { pinyin: 'mā ma', chars: ['妈妈', '马麻', '嘛嘛'], correct: '妈妈', tone: '1-0', image: '👩‍👧', audio: 'mama' },
+        { pinyin: 'bà ba', chars: ['爸爸', '罢罢', '吧吧'], correct: '爸爸', tone: '4-0', image: '👨‍👧', audio: 'baba' },
+        { pinyin: 'gē ge', chars: ['哥哥', '歌歌', '格格'], correct: '哥哥', tone: '1-0', image: '👦', audio: 'gege' },
+        { pinyin: 'jiě jie', chars: ['姐姐', '解解', '结结'], correct: '姐姐', tone: '3-0', image: '👧', audio: 'jiejie' }
     ],
     medium: [
-        { pinyin: 'píng guǒ', chars: ['苹果', '平果', '萍果'], correct: '苹果', tone: '2-3' },
-        { pinyin: 'xiāng jiāo', chars: ['香蕉', '香焦', '相交'], correct: '香蕉', tone: '1-1' },
-        { pinyin: 'lǎo hǔ', chars: ['老虎', '老胡', '老壶'], correct: '老虎', tone: '3-3' },
-        { pinyin: 'dà xiàng', chars: ['大象', '大像', '大象'], correct: '大象', tone: '4-4' },
-        { pinyin: 'xǐ què', chars: ['喜鹊', '喜雀', '洗雀'], correct: '喜鹊', tone: '3-4' },
-        { pinyin: 'kǒng què', chars: ['孔雀', '孔却', '空雀'], correct: '孔雀', tone: '3-4' },
-        { pinyin: 'shī zi', chars: ['狮子', '师子', '施子'], correct: '狮子', tone: '1-0' },
-        { pinyin: 'hóu zi', chars: ['猴子', '喉子', '侯子'], correct: '猴子', tone: '2-0' },
-        { pinyin: 'xióng māo', chars: ['熊猫', '雄猫', '胸毛'], correct: '熊猫', tone: '2-1' },
-        { pinyin: 'cháng jǐng lù', chars: ['长颈鹿', '长劲鹿', '长径鹿'], correct: '长颈鹿', tone: '2-3-4' }
+        { pinyin: 'píng guǒ', chars: ['苹果', '平果', '萍果'], correct: '苹果', tone: '2-3', image: '🍎', audio: 'pingguo' },
+        { pinyin: 'xiāng jiāo', chars: ['香蕉', '香焦', '相交'], correct: '香蕉', tone: '1-1', image: '🍌', audio: 'xiangjiao' },
+        { pinyin: 'lǎo hǔ', chars: ['老虎', '老胡', '老壶'], correct: '老虎', tone: '3-3', image: '🐅', audio: 'laohu' },
+        { pinyin: 'dà xiàng', chars: ['大象', '大像', '大象'], correct: '大象', tone: '4-4', image: '🐘', audio: 'daxiang' },
+        { pinyin: 'xǐ què', chars: ['喜鹊', '喜雀', '洗雀'], correct: '喜鹊', tone: '3-4', image: '🐦', audio: 'xique' },
+        { pinyin: 'kǒng què', chars: ['孔雀', '孔却', '空雀'], correct: '孔雀', tone: '3-4', image: '🦚', audio: 'kongque' },
+        { pinyin: 'shī zi', chars: ['狮子', '师子', '施子'], correct: '狮子', tone: '1-0', image: '🦁', audio: 'shizi' },
+        { pinyin: 'hóu zi', chars: ['猴子', '喉子', '侯子'], correct: '猴子', tone: '2-0', image: '🐒', audio: 'houzi' },
+        { pinyin: 'xióng māo', chars: ['熊猫', '雄猫', '胸毛'], correct: '熊猫', tone: '2-1', image: '🐼', audio: 'xiongmao' },
+        { pinyin: 'cháng jǐng lù', chars: ['长颈鹿', '长劲鹿', '长径鹿'], correct: '长颈鹿', tone: '2-3-4', image: '🦒', audio: 'changjinglu' }
     ],
     hard: [
-        { pinyin: 'qīng wā', chars: ['青蛙', '青哇', '清蛙'], correct: '青蛙', tone: '1-1' },
-        { pinyin: 'hú li', chars: ['狐狸', '胡力', '壶里'], correct: '狐狸', tone: '2-0' },
-        { pinyin: 'wū guī', chars: ['乌龟', '乌归', '屋规'], correct: '乌龟', tone: '1-1' },
-        { pinyin: 'mì fēng', chars: ['蜜蜂', '密峰', '蜜锋'], correct: '蜜蜂', tone: '4-1' },
-        { pinyin: 'hú dié', chars: ['蝴蝶', '胡蝶', '湖碟'], correct: '蝴蝶', tone: '2-2' },
-        { pinyin: 'zhī zhū', chars: ['蜘蛛', '知珠', '支朱'], correct: '蜘蛛', tone: '1-1' },
-        { pinyin: 'mǎ yǐ', chars: ['蚂蚁', '马蚁', '码以'], correct: '蚂蚁', tone: '3-3' },
-        { pinyin: 'xī shuài', chars: ['蟋蟀', '西帅', '稀蟀'], correct: '蟋蟀', tone: '1-4' },
-        { pinyin: 'biān fú', chars: ['蝙蝠', '边福', '蝙服'], correct: '蝙蝠', tone: '1-2' },
-        { pinyin: 'wō niú', chars: ['蜗牛', '涡牛', '窝牛'], correct: '蜗牛', tone: '1-2' }
+        { pinyin: 'qīng wā', chars: ['青蛙', '青哇', '清蛙'], correct: '青蛙', tone: '1-1', image: '🐸', audio: 'qingwa' },
+        { pinyin: 'hú li', chars: ['狐狸', '胡力', '壶里'], correct: '狐狸', tone: '2-0', image: '🦊', audio: 'huli' },
+        { pinyin: 'wū guī', chars: ['乌龟', '乌归', '屋规'], correct: '乌龟', tone: '1-1', image: '🐢', audio: 'wugui' },
+        { pinyin: 'mì fēng', chars: ['蜜蜂', '密峰', '蜜锋'], correct: '蜜蜂', tone: '4-1', image: '🐝', audio: 'mifeng' },
+        { pinyin: 'hú dié', chars: ['蝴蝶', '胡蝶', '湖碟'], correct: '蝴蝶', tone: '2-2', image: '🦋', audio: 'hudie' },
+        { pinyin: 'zhī zhū', chars: ['蜘蛛', '知珠', '支朱'], correct: '蜘蛛', tone: '1-1', image: '🕷️', audio: 'zhizhu' },
+        { pinyin: 'mǎ yǐ', chars: ['蚂蚁', '马蚁', '码以'], correct: '蚂蚁', tone: '3-3', image: '🐜', audio: 'mayi' },
+        { pinyin: 'xī shuài', chars: ['蟋蟀', '西帅', '稀蟀'], correct: '蟋蟀', tone: '1-4', image: '🦗', audio: 'xishuai' },
+        { pinyin: 'biān fú', chars: ['蝙蝠', '边福', '蝙服'], correct: '蝙蝠', tone: '1-2', image: '🦇', audio: 'bianfu' },
+        { pinyin: 'wō niú', chars: ['蜗牛', '涡牛', '窝牛'], correct: '蜗牛', tone: '1-2', image: '🐌', audio: 'woni' }
     ]
 };
 
