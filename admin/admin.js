@@ -1,17 +1,9 @@
 // API 基础URL - 根据当前路径自动检测
-const pathParts = window.location.pathname.split('/');
-const appIndex = pathParts.indexOf('app');
-// 处理 admin 子目录的情况：/portal-home/app/parenting/admin/ -> /portal-home/app/parenting
-let BASE_PATH = '';
-if (appIndex >= 0) {
-    // 检查是否在 admin 子目录下
-    const adminIndex = pathParts.indexOf('admin');
-    if (adminIndex > appIndex) {
-        BASE_PATH = '/' + pathParts.slice(1, appIndex + 2).join('/');
-    } else {
-        BASE_PATH = '/' + pathParts.slice(1, appIndex + 2).join('/');
-    }
-}
+// 找到 /admin 的位置，取其前面的部分作为 BASE_PATH
+// 例：/portal-home/app/parenting/admin/ -> /portal-home/app/parenting
+// 例：/admin/ -> ''
+const adminPos = window.location.pathname.indexOf('/admin');
+const BASE_PATH = adminPos > 0 ? window.location.pathname.slice(0, adminPos) : '';
 const API_BASE = BASE_PATH + '/api';
 
 console.log('[Admin] BASE_PATH:', BASE_PATH, 'API_BASE:', API_BASE);

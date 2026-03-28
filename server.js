@@ -822,8 +822,9 @@ function serveHtmlWithFixedPaths(res, htmlPath, basePath) {
 }
 
 // 处理 admin 路径 - 无尾斜杠时重定向，确保 admin.js 相对路径正确解析
+// 使用相对路径 'admin/' 而非绝对路径 '/admin/'，避免反向代理剥前缀后跳到错误地址
 app.get('/admin', (req, res) => {
-    res.redirect('/admin/');
+    res.redirect('admin/');
 });
 app.get('/admin/', (req, res) => {
     res.sendFile(path.join(__dirname, 'admin', 'index.html'));

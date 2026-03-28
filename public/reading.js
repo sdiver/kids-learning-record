@@ -1163,36 +1163,44 @@ function speakChar(char) {
     const selectVoice = () => {
         const voices = speechSynthesis.getVoices();
         
-        // 语音选择优先级：
-        // 1. Google 中文女声
-        // 2. Microsoft 中文女声
-        // 3. 任何中文语音
-        // 4. 默认语音
+        // 语音选择优先级（全程排除 zh-HK / zh-TW 粤语/繁中）：
+        // 1. Google 普通话女声
+        // 2. Microsoft 普通话女声
+        // 3. 任何 zh-CN 女声
+        // 4. 任何 zh-CN 语音
+        // 5. 非粤语/繁中的中文语音
         let selectedVoice = null;
-        
-        // 优先选择 Google 中文女声
-        selectedVoice = voices.find(v => 
-            v.name.includes('Google') && v.name.includes('中文') && v.name.includes('女')
+
+        // 优先选择 Google 普通话女声
+        selectedVoice = voices.find(v =>
+            v.name.includes('Google') && v.lang.startsWith('zh-CN') && v.name.includes('女')
         );
-        
-        // 其次 Microsoft 中文女声
+
+        // 其次 Microsoft 普通话女声
         if (!selectedVoice) {
-            selectedVoice = voices.find(v => 
-                v.name.includes('Microsoft') && v.lang.includes('zh') && 
-                (v.name.includes('女') || v.name.includes('Yaoyao') || v.name.includes('Huihui'))
+            selectedVoice = voices.find(v =>
+                v.name.includes('Microsoft') && v.lang.startsWith('zh-CN') &&
+                (v.name.includes('女') || v.name.includes('Yaoyao') || v.name.includes('Huihui') || v.name.includes('Xiaoxiao'))
             );
         }
-        
-        // 然后任何中文女声
+
+        // 然后任何 zh-CN 女声
         if (!selectedVoice) {
-            selectedVoice = voices.find(v => 
-                v.lang.includes('zh') && (v.name.includes('女') || v.gender === 'female')
+            selectedVoice = voices.find(v =>
+                v.lang.startsWith('zh-CN') && (v.name.includes('女') || v.gender === 'female')
             );
         }
-        
-        // 最后任何中文语音
+
+        // 再次任何 zh-CN 语音
         if (!selectedVoice) {
-            selectedVoice = voices.find(v => v.lang.includes('zh') || v.lang.includes('CN'));
+            selectedVoice = voices.find(v => v.lang.startsWith('zh-CN'));
+        }
+
+        // 兜底：任何中文语音，但排除粤语（zh-HK）和繁中（zh-TW）
+        if (!selectedVoice) {
+            selectedVoice = voices.find(v =>
+                v.lang.startsWith('zh') && !v.lang.startsWith('zh-HK') && !v.lang.startsWith('zh-TW')
+            );
         }
 
         if (selectedVoice) {

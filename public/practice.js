@@ -695,11 +695,29 @@ function confirmPinyinAnswer() {
 function speakCharPinyin(char) {
     if (!window.speechSynthesis) return;
 
+    window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(char);
     utterance.lang = 'zh-CN';
     utterance.rate = 0.7;
     utterance.pitch = 1.1;
-    window.speechSynthesis.speak(utterance);
+
+    const selectAndSpeak = () => {
+        const voices = window.speechSynthesis.getVoices();
+        const voice =
+            voices.find(v => v.name.includes('Google') && v.lang.startsWith('zh-CN') && v.name.includes('女')) ||
+            voices.find(v => v.name.includes('Microsoft') && v.lang.startsWith('zh-CN') && (v.name.includes('女') || v.name.includes('Xiaoxiao') || v.name.includes('Yaoyao'))) ||
+            voices.find(v => v.lang.startsWith('zh-CN') && (v.name.includes('女') || v.gender === 'female')) ||
+            voices.find(v => v.lang.startsWith('zh-CN')) ||
+            voices.find(v => v.lang.startsWith('zh') && !v.lang.startsWith('zh-HK') && !v.lang.startsWith('zh-TW'));
+        if (voice) utterance.voice = voice;
+        window.speechSynthesis.speak(utterance);
+    };
+
+    if (window.speechSynthesis.getVoices().length > 0) {
+        selectAndSpeak();
+    } else {
+        window.speechSynthesis.addEventListener('voiceschanged', selectAndSpeak, { once: true });
+    }
 }
 
 // 生成数学题
@@ -973,13 +991,28 @@ function restartPractice() {
 function speakPinyin(pinyin) {
     if (!window.speechSynthesis) return;
 
-    // 取消之前的朗读
     window.speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(pinyin);
     utterance.lang = 'zh-CN';
-    utterance.rate = 0.8; // 稍微慢一点，适合小朋友
-    utterance.pitch = 1.1; // 音调稍高，更亲切
+    utterance.rate = 0.8;
+    utterance.pitch = 1.1;
 
-    window.speechSynthesis.speak(utterance);
+    const selectAndSpeak = () => {
+        const voices = window.speechSynthesis.getVoices();
+        const voice =
+            voices.find(v => v.name.includes('Google') && v.lang.startsWith('zh-CN') && v.name.includes('女')) ||
+            voices.find(v => v.name.includes('Microsoft') && v.lang.startsWith('zh-CN') && (v.name.includes('女') || v.name.includes('Xiaoxiao') || v.name.includes('Yaoyao'))) ||
+            voices.find(v => v.lang.startsWith('zh-CN') && (v.name.includes('女') || v.gender === 'female')) ||
+            voices.find(v => v.lang.startsWith('zh-CN')) ||
+            voices.find(v => v.lang.startsWith('zh') && !v.lang.startsWith('zh-HK') && !v.lang.startsWith('zh-TW'));
+        if (voice) utterance.voice = voice;
+        window.speechSynthesis.speak(utterance);
+    };
+
+    if (window.speechSynthesis.getVoices().length > 0) {
+        selectAndSpeak();
+    } else {
+        window.speechSynthesis.addEventListener('voiceschanged', selectAndSpeak, { once: true });
+    }
 }
