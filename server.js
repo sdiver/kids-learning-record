@@ -91,13 +91,13 @@ commonProxyPaths.forEach(proxyPath => {
 
 // 静态文件服务 - 支持直接访问
 app.use('/', express.static('public'));
-// 禁用 redirect 选项，防止 /manage 自动跳转到 /manage/ 丢失代理路径
-app.use('/manage', express.static('admin', { redirect: false }));
+// 禁用 redirect 选项，防止 /hub 自动跳转到 /hub/ 丢失代理路径
+app.use('/hub', express.static('admin', { redirect: false }));
 
 // 为每个代理路径挂载静态文件服务
 commonProxyPaths.forEach(proxyPath => {
     app.use(proxyPath + '/', express.static('public'));
-    app.use(proxyPath + '/manage', express.static('admin', { redirect: false }));
+    app.use(proxyPath + '/hub', express.static('admin', { redirect: false }));
 });
 
 // SQLite 数据库连接 - 支持环境变量指定路径（用于 Docker volume 挂载）
@@ -871,19 +871,19 @@ function serveHtmlWithFixedPaths(res, htmlPath, basePath) {
 
 // 处理 manage 路径 - 无尾斜杠时重定向，确保 admin.js 相对路径正确解析
 // 使用相对路径 'manage/' 而非绝对路径，避免反向代理剥前缀后跳到错误地址
-app.get('/manage', (req, res) => {
-    res.redirect('manage/');
+app.get('/hub', (req, res) => {
+    res.redirect('hub/');
 });
-app.get('/manage/', (req, res) => {
+app.get('/hub/', (req, res) => {
     res.sendFile(path.join(__dirname, 'admin', 'index.html'));
 });
 
 // 为代理路径添加同样的处理
 commonProxyPaths.forEach(proxyPath => {
-    app.get(proxyPath + '/manage', (req, res) => {
-        res.redirect(proxyPath + '/manage/');
+    app.get(proxyPath + '/hub', (req, res) => {
+        res.redirect(proxyPath + '/hub/');
     });
-    app.get(proxyPath + '/manage/', (req, res) => {
+    app.get(proxyPath + '/hub/', (req, res) => {
         serveHtmlWithFixedPaths(res, path.join(__dirname, 'admin', 'index.html'), proxyPath);
     });
 });
@@ -909,7 +909,7 @@ commonProxyPaths.forEach(proxyPath => {
 app.listen(PORT, () => {
     console.log(`🚀 服务器运行在 http://localhost:${PORT}`);
     console.log(`📊 前台页面: http://localhost:${PORT}`);
-    console.log(`🔧 后台管理: http://localhost:${PORT}/manage`);
+    console.log(`🔧 后台管理: http://localhost:${PORT}/hub`);
     console.log(`📁 支持的代理路径: ${commonProxyPaths.join(', ') || '无'}`);
 });
 
