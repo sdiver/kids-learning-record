@@ -1421,12 +1421,19 @@ async function showCharVisual(char) {
     // 获取图形数据
     const visual = charVisualData[char] || generateGenericVisual(char, pinyin);
 
+    // 搜索网络图片（使用 Wikipedia 或生成搜索链接）
+    const imageSearchUrl = `https://www.bing.com/images/search?q=${encodeURIComponent(char + ' 汉字 甲骨文')}`;
+    const webSearchUrl = `https://www.bing.com/search?q=${encodeURIComponent(char + ' 汉字 字源 演变')}`;
+
+    // 尝试获取 Wikimedia 图片
+    const wikiImageUrl = await fetchWikiImage(char);
+
     // 创建弹窗
     const modal = document.createElement('div');
     modal.className = 'char-visual-modal';
     modal.id = 'charVisualModal';
     modal.innerHTML = `
-        <div class="char-visual-content" style="position: relative;">
+        <div class="char-visual-content" style="position: relative; max-height: 90vh; overflow-y: auto;">
             <button class="close-modal-btn" onclick="closeCharVisual()">×</button>
 
             <div class="char-display">
@@ -1442,6 +1449,26 @@ async function showCharVisual(char) {
                 <div class="visual-content">
                     <div class="visual-emoji">${visual.emoji}</div>
                     <div class="visual-desc">${visual.desc}</div>
+                </div>
+            </div>
+
+            ${wikiImageUrl ? `
+            <div class="visual-section" style="margin-top: 15px;">
+                <div class="visual-title">🖼️ 网络图片辅助</div>
+                <div style="text-align: center; padding: 15px;">
+                    <img src="${wikiImageUrl}" alt="${char} 图片" style="max-width: 100%; max-height: 200px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <div style="display: none; padding: 20px; background: #f5f5f5; border-radius: 10px; color: #666;">
+                        <p>🖼️ 图片加载失败</p>
+                    </div>
+                </div>
+            </div>
+            ` : ''}
+
+            <div class="visual-section" style="margin-top: 15px;">
+                <div class="visual-title">🔍 搜索更多资料</div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; padding: 15px;">
+                    <a href="${imageSearchUrl}" target="_blank" style="padding: 10px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 20px; font-size: 0.9rem;">🖼️ 搜索图片</a>
+                    <a href="${webSearchUrl}" target="_blank" style="padding: 10px 20px; background: linear-gradient(135deg, #4ECDC4 0%, #44a08d 100%); color: white; text-decoration: none; border-radius: 20px; font-size: 0.9rem;">📚 字源资料</a>
                 </div>
             </div>
 
@@ -1489,6 +1516,35 @@ async function showCharVisual(char) {
 
     // ESC键关闭
     document.addEventListener('keydown', handleEscKey);
+}
+
+// 从 Wikimedia 获取图片
+async function fetchWikiImage(char) {
+    try {
+        // 尝试获取 Wikimedia Commons 上的汉字图片
+        const searchTerm = encodeURIComponent(char + ' character');
+        const response = await fetch(`https://en.wikipedia.org/w/api.php?action=query&titles=${char}&prop=pageimages&format=json&pithumbsize=300&origin=*`, {
+            headers: { 'Accept': 'application/json' }
+        });
+
+        if (!response.ok) return null;
+
+        const data = await response.json();
+        const pages = data.query?.pages;
+        if (pages) {
+            const page = Object.values(pages)[0];
+            if (page.thumbnail?.source) {
+                return page.thumbnail.source;
+            }
+        }
+
+        // 回退：使用 Unsplash 的随机相关图片（通过关键词）
+        // 这里返回 null，让前端显示搜索链接
+        return null;
+    } catch (e) {
+        console.error('获取网络图片失败:', e);
+        return null;
+    }
 }
 
 // ESC键处理

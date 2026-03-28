@@ -15,7 +15,23 @@
       "Bash(curl -s http://localhost:3000/reading.html | head -50)",
       "Bash(git init:*)",
       "Bash(git add:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(curl:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:10.147.20.30)",
+      "WebFetch(domain:home-brew.kon-tiki.cn)",
+      "Bash(git commit:*)",
+      "Bash(:)",
+      "Bash(find /Users/shixiangren/Work/homegate/parenting -name *.html -o -name *.css)",
+      "Bash(\"command\": \"ls -la /Users/shixiangren/.claude/teams/ 2>/dev/null || echo \"\"No teams directory\"\"\",)",
+      "Bash(\"description\": \"Check existing teams\")",
+      "Bash(})",
+      "Bash(find /Users/shixiangren/Work/homegate/parenting -type f -name *.js -o -name *.json -o -name *.env*)",
+      "Bash(./deploy.sh)"
     ]
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "wechat"
+  ]
 }

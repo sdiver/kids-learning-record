@@ -1,8 +1,20 @@
 // API 基础URL - 根据当前路径自动检测
 const pathParts = window.location.pathname.split('/');
 const appIndex = pathParts.indexOf('app');
-const BASE_PATH = appIndex >= 0 ? '/' + pathParts.slice(1, appIndex + 2).join('/') : '';
+// 处理 admin 子目录的情况：/portal-home/app/parenting/admin/ -> /portal-home/app/parenting
+let BASE_PATH = '';
+if (appIndex >= 0) {
+    // 检查是否在 admin 子目录下
+    const adminIndex = pathParts.indexOf('admin');
+    if (adminIndex > appIndex) {
+        BASE_PATH = '/' + pathParts.slice(1, appIndex + 2).join('/');
+    } else {
+        BASE_PATH = '/' + pathParts.slice(1, appIndex + 2).join('/');
+    }
+}
 const API_BASE = BASE_PATH + '/api';
+
+console.log('[Admin] BASE_PATH:', BASE_PATH, 'API_BASE:', API_BASE);
 
 // 提交锁 - 防止重复提交
 const submitLocks = new Map();

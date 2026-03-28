@@ -343,7 +343,8 @@ function initTypeSelector() {
             if (mathTypeSelector && difficultySelector) {
                 if (currentType === 'math') {
                     mathTypeSelector.classList.remove('hidden');
-                    difficultySelector.classList.add('hidden');
+                    // 数学模式下也显示难度选择器
+                    difficultySelector.classList.remove('hidden');
                 } else {
                     mathTypeSelector.classList.add('hidden');
                     difficultySelector.classList.remove('hidden');
@@ -458,17 +459,16 @@ function nextQuestion() {
     }
 }
 
-// 生成拼音题
+// 生成拼音题 - 不显示拼音，点击选项时发音
 function generatePinyinQuestion() {
     const questions = pinyinData[currentDifficulty];
     currentQuestion = questions[Math.floor(Math.random() * questions.length)];
 
-    // 显示拼音、图片和提示
-    const imageHtml = currentQuestion.image ? `<div style="font-size: 5rem; margin: 10px 0;">${currentQuestion.image}</div>` : '';
+    // 只显示图片和提示，不显示拼音
+    const imageHtml = currentQuestion.image ? `<div style="font-size: 6rem; margin: 10px 0; animation: bounce 1s ease infinite;">${currentQuestion.image}</div>` : '';
     document.getElementById('questionText').innerHTML = `
-        <div class="pinyin">${currentQuestion.pinyin}</div>
         ${imageHtml}
-        <div style="font-size: 1.5rem; color: #666;">选择正确的汉字</div>
+        <div style="font-size: 1.5rem; color: #666; margin-top: 15px;">👆 点击图片或按钮听发音，选择正确的汉字</div>
     `;
 
     const optionsArea = document.getElementById('optionsArea');
@@ -478,15 +478,44 @@ function generatePinyinQuestion() {
     // 打乱选项
     const shuffled = [...currentQuestion.chars].sort(() => Math.random() - 0.5);
 
-    optionsArea.innerHTML = shuffled.map(char => `
-        <button class="option-btn" onclick="checkPinyinAnswer('${char}', this)">
-            <span style="font-size: 2rem;">${char}</span>
+    optionsArea.innerHTML = shuffled.map((char, index) => `
+        <button class="option-btn pinyin-option" data-char="${char}" onclick="checkPinyinAnswer('${char}', this)" style="position: relative; overflow: hidden;">
+            <span style="font-size: 3rem; display: block; margin-bottom: 8px;">${char}</span>
+            <span style="font-size: 0.9rem; color: #999;">点击听发音 🔊</span>
         </button>
     `).join('');
 
-    // 自动播放拼音读音
-    if (currentQuestion.audio) {
-        speakPinyin(currentQuestion.pinyin);
+    // 点击选项时播放该字的拼音发音
+    optionsArea.querySelectorAll('.pinyin-option').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            if (isAnswered) return;
+            const char = this.dataset.char;
+            speakCharPinyin(char);
+        });
+    });
+
+    // 自动播放图片对应的拼音读音作为提示
+    if (currentQuestion.pinyin) {
+        setTimeout(() => speakPinyin(currentQuestion.pinyin), 500);
+    }
+}
+
+// 朗读单个汉字的拼音
+function speakCharPinyin(char) {
+    if (!window.speechSynthesis) return;
+
+    // 从当前题目中找到该字的拼音
+    let pinyin = currentQuestion.pinyin;
+    // 如果是词语，需要找到对应字的拼音
+    if (char.length === 1 && currentQuestion.correct.includes(char)) {
+        // 简单处理：直接朗读汉字
+        const utterance = new SpeechSynthesisUtterance(char);
+        utterance.lang = 'zh-CN';
+        utterance.rate = 0.7;
+        utterance.pitch = 1.1;
+        window.speechSynthesis.speak(utterance);
+    } else {
+        speakPinyin(char);
     }
 }
 
