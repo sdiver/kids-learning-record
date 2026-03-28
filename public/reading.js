@@ -782,122 +782,85 @@ function showInterimResult(text) {
     }
 }
 
-// 高级识别处理 - 使用多种算法提高准确度（儿童容错版）
+// 处理识别结果：遍历所有候选文本，取第一个有进展的
 function processRecognizedTextAdvanced(alternatives) {
     if (!currentArticle || currentIndex >= charElements.length) return;
 
-    console.log('处理识别文本:', alternatives);
+    const punct = /[，。！？、；：""''（）【】「」『』〈〉《》…—～·\s\r\n"'`!?,.:;()\[\]{}\-]/g;
 
-    // 处理所有候选结果
     for (const text of alternatives) {
-        // 去除空格和标点
-        const cleanText = text.replace(/[，。！？、；：""''（）【】「」『』〈〉《》…—～·\s\r\n"'`!?,.:;()\[\]{}\-]/g, '');
+        const cleanText = text.replace(punct, '');
+        if (!cleanText.length) continue;
 
-        console.log('清理后文本:', cleanText, '当前索引:', currentIndex);
-
-        if (cleanText.length === 0) {
-            console.log('清理后文本为空，跳过');
-            continue;
-        }
-
-        // 使用滑动窗口匹配
-        const result = tryMatchText(cleanText);
-        console.log('匹配结果:', result);
-
-        if (result) {
-            console.log('匹配成功');
-            return; // 成功匹配
+        const advanced = tryMatchText(cleanText);
+        if (advanced) {
+            currentCharRetries = 0;
+            return;
         }
     }
 
-    // 如果没有匹配成功，允许重试（不自动跳过）
-    if (readingConfig.retryEnabled) {
-        currentCharRetries++;
-        console.log('匹配失败，重试次数:', currentCharRetries);
-        
-        if (currentCharRetries >= readingConfig.maxRetries) {
-            // 超过重试次数，提示用户
-            updateStatus('error', '🤔 没听清，请点击字看提示或按跳过');
-            currentCharRetries = 0;
-        }
+    // 所有候选都没有进展，计重试
+    currentCharRetries++;
+    if (currentCharRetries >= readingConfig.maxRetries) {
+        updateStatus('error', '🤔 没听清，请点击字看提示或按跳过');
+        currentCharRetries = 0;
     }
 }
 
-// 尝试匹配文本 - 使用多种策略（儿童容错版）
+// 贪婪前向匹配：带单步前瞻纠偏，始终向前推进，不因单字失败而中断
 function tryMatchText(text) {
-    let matchedCount = 0;
+    const startIndex = currentIndex;
+    let ri = 0; // 识别文本游标
 
-    console.log('tryMatchText 开始:', text, '长度:', text.length);
-
-    for (let i = 0; i < text.length && currentIndex < charElements.length; i++) {
-        const recognizedChar = text[i];
+    while (ri < text.length && currentIndex < charElements.length) {
         const expectedChar = charElements[currentIndex]?.dataset?.char;
+        if (!expectedChar) break;
 
-        console.log(`比较: 预期[${expectedChar}] vs 识别[${recognizedChar}]`);
-
-        if (!expectedChar) {
-            console.log('没有预期字符，跳过');
-            break;
-        }
-
-        // 跳过标点符号
-        if (/[，。！？、；：""''（）【】\s]/.test(recognizedChar)) {
-            console.log('跳过标点:', recognizedChar);
-            continue;
-        }
-
-        // 使用多种匹配策略
+        const recognizedChar = text[ri];
         const matchResult = checkMatchAdvanced(expectedChar, recognizedChar);
-        console.log('匹配结果:', matchResult);
 
         if (matchResult.isMatch) {
-            if (matchResult.exact) {
-                // 完全匹配，正确
-                markCorrect(currentIndex);
-                matchedCount++;
-            } else {
-                // 容错匹配（同音字、形近字等），算正确但记录到错字本
-                markCorrect(currentIndex);
+            // 匹配成功
+            markCorrect(currentIndex);
+            if (!matchResult.exact) {
                 addToMistakeBook(expectedChar, recognizedChar + (matchResult.reason ? `(${matchResult.reason})` : ''));
-                matchedCount++;
             }
             currentIndex++;
-            currentCharRetries = 0; // 重置重试计数
-            
-            // 慢速模式：等待更长时间
-            if (readingConfig.slowMode && readingConfig.waitBetweenChars > 0) {
-                // 视觉反馈延迟
-            }
+            ri++;
         } else {
-            // 不匹配，根据配置决定是否标记为错误
-            if (!readingConfig.retryEnabled || currentCharRetries >= readingConfig.maxRetries - 1) {
-                console.log('不匹配，标记错误');
-                markWrong(currentIndex, recognizedChar);
-                currentIndex++;
-                currentCharRetries = 0;
-            } else {
-                // 允许重试，不推进
-                console.log('不匹配，等待重试');
-                return false;
+            // 前瞻1：识别文本多了一个噪音字（跳过识别字，期待字不变）
+            const nextRecog = text[ri + 1];
+            if (nextRecog && checkMatchAdvanced(expectedChar, nextRecog).isMatch) {
+                ri++; // 跳过噪音字，下次循环用 nextRecog 重新匹配
+                continue;
             }
+
+            // 前瞻2：孩子漏读了一个字（跳过期待字，识别字不变）
+            const nextExpEl = charElements[currentIndex + 1];
+            if (nextExpEl && checkMatchAdvanced(nextExpEl.dataset.char, recognizedChar).isMatch) {
+                markWrong(currentIndex, '—'); // 漏读
+                currentIndex++;
+                continue; // 下次循环用同一个识别字匹配下一个期待字
+            }
+
+            // 真正读错：标记错误，两边同时推进
+            markWrong(currentIndex, recognizedChar);
+            currentIndex++;
+            ri++;
         }
 
-        // 检查是否完成
         if (currentIndex >= charElements.length) {
             finishReading();
             return true;
         }
     }
 
-    console.log('匹配完成, matchedCount:', matchedCount, 'currentIndex:', currentIndex);
-
-    if (matchedCount > 0 || currentIndex > 0) {
-        // 只要有处理过字符，就算成功
+    const advanced = currentIndex - startIndex;
+    if (advanced > 0) {
         highlightCurrent();
         updateProgress();
         return true;
     }
-
     return false;
 }
 
