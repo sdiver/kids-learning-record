@@ -449,14 +449,22 @@ function loadGeneratedArticle() {
 }
 
 // 加载所有文章（内置 + 自定义）
-function loadAllArticles() {
-    // 从 localStorage 加载自定义文章
-    const customArticles = JSON.parse(localStorage.getItem('customArticles') || '[]');
+async function loadAllArticles() {
+    let customArticles = [];
+    try {
+        const response = await fetch(`${API_BASE}/articles/custom`);
+        const data = await response.json();
+        if (data.success) {
+            customArticles = data.data;
+        }
+    } catch (e) {
+        console.error('加载自定义文章失败:', e);
+    }
 
     // 合并文章列表，自定义文章使用负ID避免冲突
     allArticles = [
         ...builtinArticles,
-        ...customArticles.map((a, i) => ({ ...a, id: -(i + 1), isCustom: true }))
+        ...customArticles.map(a => ({ ...a, id: -a.id, isCustom: true }))
     ];
 
     initArticleList();
@@ -1466,7 +1474,7 @@ function closeAddArticleModal() {
 }
 
 // 添加自定义文章
-function addCustomArticle() {
+async function addCustomArticle() {
     const title = document.getElementById('newArticleTitle').value.trim();
     const author = document.getElementById('newArticleAuthor').value.trim();
     const content = document.getElementById('newArticleContent').value.trim();
@@ -1487,23 +1495,24 @@ function addCustomArticle() {
         return;
     }
 
-    // 获取已保存的自定义文章
-    const customArticles = JSON.parse(localStorage.getItem('customArticles') || '[]');
-
-    // 添加新文章
-    customArticles.push({
-        title,
-        author: author || undefined,
-        content,
-        level,
-        createdAt: new Date().toISOString()
-    });
-
-    // 保存到 localStorage
-    localStorage.setItem('customArticles', JSON.stringify(customArticles));
+    try {
+        const response = await fetch(`${API_BASE}/articles/custom`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title, author: author || undefined, content, level })
+        });
+        const data = await response.json();
+        if (!data.success) {
+            alert('添加失败：' + data.message);
+            return;
+        }
+    } catch (e) {
+        alert('添加失败，请检查网络连接');
+        return;
+    }
 
     // 重新加载文章列表
-    loadAllArticles();
+    await loadAllArticles();
 
     // 关闭模态框
     closeAddArticleModal();

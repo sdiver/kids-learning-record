@@ -227,6 +227,16 @@ db.serialize(() => {
         FOREIGN KEY (user_id) REFERENCES users(id)
     )`);
 
+    // 自定义文章表
+    db.run(`CREATE TABLE IF NOT EXISTS custom_articles (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        author TEXT,
+        content TEXT NOT NULL,
+        level TEXT DEFAULT 'medium',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+
     // 插入默认科目
     const defaultSubjects = [
         ['语文', '📚', '#FF6B6B', 1],
@@ -262,6 +272,44 @@ db.serialize(() => {
 // 数据库连接测试
 apiRouter.get('/health', (req, res) => {
     res.json({ status: 'OK', message: '数据库连接正常' });
+});
+
+// ==================== 自定义文章 API ====================
+
+// 获取所有自定义文章
+apiRouter.get('/articles/custom', (req, res) => {
+    db.all('SELECT * FROM custom_articles ORDER BY created_at DESC', (err, rows) => {
+        if (err) return res.status(500).json({ success: false, message: err.message });
+        res.json({ success: true, data: rows });
+    });
+});
+
+// 添加自定义文章
+apiRouter.post('/articles/custom', (req, res) => {
+    const { title, author, content, level } = req.body;
+    if (!title || !content) {
+        return res.status(400).json({ success: false, message: '标题和内容不能为空' });
+    }
+    if (content.length > 500) {
+        return res.status(400).json({ success: false, message: '文章内容不能超过500字' });
+    }
+    db.run(
+        'INSERT INTO custom_articles (title, author, content, level) VALUES (?, ?, ?, ?)',
+        [title, author || null, content, level || 'medium'],
+        function(err) {
+            if (err) return res.status(500).json({ success: false, message: err.message });
+            res.json({ success: true, data: { id: this.lastID, message: '添加成功' } });
+        }
+    );
+});
+
+// 删除自定义文章
+apiRouter.delete('/articles/custom/:id', (req, res) => {
+    db.run('DELETE FROM custom_articles WHERE id = ?', [req.params.id], function(err) {
+        if (err) return res.status(500).json({ success: false, message: err.message });
+        if (this.changes === 0) return res.status(404).json({ success: false, message: '文章不存在' });
+        res.json({ success: true, message: '删除成功' });
+    });
 });
 
 // ==================== 认证 API ====================
