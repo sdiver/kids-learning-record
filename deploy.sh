@@ -32,11 +32,11 @@ done
 
 # 停止并删除旧容器
 echo "🛑 停止旧容器..."
-docker-compose down
+docker compose down
 
 # 重新构建并启动
 echo "🏗️  重新构建并启动..."
-docker-compose up -d --build
+docker compose up -d --build
 
 # 等待服务启动
 sleep 3

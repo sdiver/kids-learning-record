@@ -59,136 +59,135 @@ const pinyinData = {
     ]
 };
 
-// 数学口算题库
+// 数学口算题库 - 分离加减法和乘除法
 const mathData = {
-    easy: {
-        generate() {
-            const types = ['add', 'sub', 'simple'];
-            const type = types[Math.floor(Math.random() * types.length)];
-            let question, answer, display;
-
-            switch(type) {
-                case 'add':
+    // 加减法
+    addsub: {
+        easy: {
+            generate() {
+                const isAdd = Math.random() > 0.5;
+                let display, answer;
+                if (isAdd) {
                     // 10以内加法
-                    const a1 = Math.floor(Math.random() * 9) + 1;
-                    const b1 = Math.floor(Math.random() * (10 - a1)) + 1;
-                    display = `${a1} + ${b1}`;
-                    answer = a1 + b1;
-                    break;
-                case 'sub':
+                    const a = Math.floor(Math.random() * 9) + 1;
+                    const b = Math.floor(Math.random() * (10 - a)) + 1;
+                    display = `${a} + ${b}`;
+                    answer = a + b;
+                } else {
                     // 10以内减法
-                    const a2 = Math.floor(Math.random() * 9) + 2;
-                    const b2 = Math.floor(Math.random() * (a2 - 1)) + 1;
-                    display = `${a2} - ${b2}`;
-                    answer = a2 - b2;
-                    break;
-                case 'simple':
-                    // 简单填空
-                    const num = Math.floor(Math.random() * 10) + 1;
-                    const part = Math.floor(Math.random() * num);
-                    display = `${part} + ? = ${num}`;
-                    answer = num - part;
-                    break;
+                    const a = Math.floor(Math.random() * 9) + 2;
+                    const b = Math.floor(Math.random() * (a - 1)) + 1;
+                    display = `${a} - ${b}`;
+                    answer = a - b;
+                }
+                return { question: `${display} = ?`, answer, display, type: '加减法' };
             }
-
-            return { question: `${display} = ?`, answer, display };
-        }
-    },
-    medium: {
-        generate() {
-            const types = ['add', 'sub', 'mul', 'chain'];
-            const type = types[Math.floor(Math.random() * types.length)];
-            let display, answer;
-
-            switch(type) {
-                case 'add':
+        },
+        medium: {
+            generate() {
+                const isAdd = Math.random() > 0.5;
+                let display, answer;
+                if (isAdd) {
                     // 20以内加法
-                    const a1 = Math.floor(Math.random() * 15) + 5;
-                    const b1 = Math.floor(Math.random() * (20 - a1)) + 1;
-                    display = `${a1} + ${b1}`;
-                    answer = a1 + b1;
-                    break;
-                case 'sub':
+                    const a = Math.floor(Math.random() * 15) + 5;
+                    const b = Math.floor(Math.random() * (20 - a)) + 1;
+                    display = `${a} + ${b}`;
+                    answer = a + b;
+                } else {
                     // 20以内减法
-                    const a2 = Math.floor(Math.random() * 10) + 11;
-                    const b2 = Math.floor(Math.random() * (a2 - 1)) + 1;
-                    display = `${a2} - ${b2}`;
-                    answer = a2 - b2;
-                    break;
-                case 'mul':
-                    // 表内乘法
-                    const a3 = Math.floor(Math.random() * 8) + 2;
-                    const b3 = Math.floor(Math.random() * 8) + 2;
-                    display = `${a3} × ${b3}`;
-                    answer = a3 * b3;
-                    break;
-                case 'chain':
-                    // 连加连减
-                    const n1 = Math.floor(Math.random() * 10) + 1;
-                    const n2 = Math.floor(Math.random() * 5) + 1;
-                    const n3 = Math.floor(Math.random() * 5) + 1;
-                    display = `${n1} + ${n2} - ${n3}`;
-                    answer = n1 + n2 - n3;
-                    break;
+                    const a = Math.floor(Math.random() * 10) + 11;
+                    const b = Math.floor(Math.random() * (a - 1)) + 1;
+                    display = `${a} - ${b}`;
+                    answer = a - b;
+                }
+                return { question: `${display} = ?`, answer, display, type: '加减法' };
             }
-
-            return { question: `${display} = ?`, answer, display };
+        },
+        hard: {
+            generate() {
+                const isAdd = Math.random() > 0.5;
+                let display, answer;
+                if (isAdd) {
+                    // 100以内加法
+                    const a = Math.floor(Math.random() * 50) + 20;
+                    const b = Math.floor(Math.random() * 40) + 10;
+                    display = `${a} + ${b}`;
+                    answer = a + b;
+                } else {
+                    // 100以内减法
+                    const a = Math.floor(Math.random() * 50) + 50;
+                    const b = Math.floor(Math.random() * 40) + 10;
+                    display = `${a} - ${b}`;
+                    answer = a - b;
+                }
+                return { question: `${display} = ?`, answer, display, type: '加减法' };
+            }
         }
     },
-    hard: {
-        generate() {
-            const types = ['big', 'mul', 'div', 'chain', 'fill'];
-            const type = types[Math.floor(Math.random() * types.length)];
-            let display, answer;
-
-            switch(type) {
-                case 'big':
-                    // 100以内加减
-                    const a1 = Math.floor(Math.random() * 50) + 20;
-                    const b1 = Math.floor(Math.random() * 40) + 10;
-                    const isAdd = Math.random() > 0.5;
-                    if (isAdd) {
-                        display = `${a1} + ${b1}`;
-                        answer = a1 + b1;
-                    } else {
-                        display = `${a1 + b1} - ${b1}`;
-                        answer = a1;
-                    }
-                    break;
-                case 'mul':
-                    // 两位数乘一位数
-                    const a2 = Math.floor(Math.random() * 90) + 10;
-                    const b2 = Math.floor(Math.random() * 8) + 2;
-                    display = `${a2} × ${b2}`;
-                    answer = a2 * b2;
-                    break;
-                case 'div':
-                    // 除法
-                    const b3 = Math.floor(Math.random() * 8) + 2;
-                    const ans3 = Math.floor(Math.random() * 9) + 2;
-                    const a3 = b3 * ans3;
-                    display = `${a3} ÷ ${b3}`;
-                    answer = ans3;
-                    break;
-                case 'chain':
-                    // 混合运算
-                    const n1 = Math.floor(Math.random() * 20) + 10;
-                    const n2 = Math.floor(Math.random() * 10) + 1;
-                    const n3 = Math.floor(Math.random() * 5) + 1;
-                    const n4 = Math.floor(Math.random() * 5) + 1;
-                    display = `${n1} - ${n2} + ${n3} + ${n4}`;
-                    answer = n1 - n2 + n3 + n4;
-                    break;
-                case 'fill':
-                    // 填空
-                    const num = Math.floor(Math.random() * 50) + 20;
-                    const part = Math.floor(Math.random() * (num - 5)) + 5;
-                    display = `? + ${part} = ${num}`;
-                    answer = num - part;
-                    break;
+    // 乘除法
+    muldiv: {
+        easy: {
+            generate() {
+                const isMul = Math.random() > 0.5;
+                let display, answer;
+                if (isMul) {
+                    // 表内乘法（2-5）
+                    const a = Math.floor(Math.random() * 4) + 2;
+                    const b = Math.floor(Math.random() * 4) + 2;
+                    display = `${a} × ${b}`;
+                    answer = a * b;
+                } else {
+                    // 简单除法
+                    const b = Math.floor(Math.random() * 4) + 2;
+                    const ans = Math.floor(Math.random() * 4) + 2;
+                    const a = b * ans;
+                    display = `${a} ÷ ${b}`;
+                    answer = ans;
+                }
+                return { question: `${display} = ?`, answer, display, type: '乘除法' };
             }
-
-            return { question: `${display} = ?`, answer, display };
+        },
+        medium: {
+            generate() {
+                const isMul = Math.random() > 0.5;
+                let display, answer;
+                if (isMul) {
+                    // 表内乘法（2-9）
+                    const a = Math.floor(Math.random() * 8) + 2;
+                    const b = Math.floor(Math.random() * 8) + 2;
+                    display = `${a} × ${b}`;
+                    answer = a * b;
+                } else {
+                    // 表内除法
+                    const b = Math.floor(Math.random() * 8) + 2;
+                    const ans = Math.floor(Math.random() * 8) + 2;
+                    const a = b * ans;
+                    display = `${a} ÷ ${b}`;
+                    answer = ans;
+                }
+                return { question: `${display} = ?`, answer, display, type: '乘除法' };
+            }
+        },
+        hard: {
+            generate() {
+                const isMul = Math.random() > 0.5;
+                let display, answer;
+                if (isMul) {
+                    // 两位数乘一位数
+                    const a = Math.floor(Math.random() * 90) + 10;
+                    const b = Math.floor(Math.random() * 8) + 2;
+                    display = `${a} × ${b}`;
+                    answer = a * b;
+                } else {
+                    // 两位数除法
+                    const b = Math.floor(Math.random() * 8) + 2;
+                    const ans = Math.floor(Math.random() * 20) + 5;
+                    const a = b * ans;
+                    display = `${a} ÷ ${b}`;
+                    answer = ans;
+                }
+                return { question: `${display} = ?`, answer, display, type: '乘除法' };
+            }
         }
     }
 };
@@ -296,6 +295,7 @@ let currentKidId = localStorage.getItem('currentKidId') || '';
 document.addEventListener('DOMContentLoaded', () => {
     initTypeSelector();
     initDifficultySelector();
+    initMathTypeSelector();
     loadKids();
 });
 
@@ -336,10 +336,44 @@ function initTypeSelector() {
             document.querySelectorAll('.type-card').forEach(c => c.classList.remove('active'));
             card.classList.add('active');
             currentType = card.dataset.type;
+
+            // 显示/隐藏数学类型选择器
+            const mathTypeSelector = document.getElementById('mathTypeSelector');
+            const difficultySelector = document.getElementById('difficultySelector');
+            if (mathTypeSelector && difficultySelector) {
+                if (currentType === 'math') {
+                    mathTypeSelector.classList.remove('hidden');
+                    difficultySelector.classList.add('hidden');
+                } else {
+                    mathTypeSelector.classList.add('hidden');
+                    difficultySelector.classList.remove('hidden');
+                }
+            }
+
             updatePracticeTitle();
             resetPractice();
         });
     });
+}
+
+// 数学类型选择器
+function initMathTypeSelector() {
+    document.querySelectorAll('#mathTypeSelector .difficulty-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('#mathTypeSelector .difficulty-btn').forEach(b => {
+                b.classList.remove('active');
+                b.style.background = '#e0e0e0';
+                b.style.color = '#666';
+            });
+            btn.classList.add('active');
+            btn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            btn.style.color = 'white';
+            window.mathSubType = btn.dataset.mathType;
+            resetPractice();
+        });
+    });
+    // 默认选择加减法
+    window.mathSubType = 'addsub';
 }
 
 // 难度选择器
@@ -429,8 +463,11 @@ function generatePinyinQuestion() {
     const questions = pinyinData[currentDifficulty];
     currentQuestion = questions[Math.floor(Math.random() * questions.length)];
 
+    // 显示拼音、图片和提示
+    const imageHtml = currentQuestion.image ? `<div style="font-size: 5rem; margin: 10px 0;">${currentQuestion.image}</div>` : '';
     document.getElementById('questionText').innerHTML = `
         <div class="pinyin">${currentQuestion.pinyin}</div>
+        ${imageHtml}
         <div style="font-size: 1.5rem; color: #666;">选择正确的汉字</div>
     `;
 
@@ -446,6 +483,11 @@ function generatePinyinQuestion() {
             <span style="font-size: 2rem;">${char}</span>
         </button>
     `).join('');
+
+    // 自动播放拼音读音
+    if (currentQuestion.audio) {
+        speakPinyin(currentQuestion.pinyin);
+    }
 }
 
 // 检查拼音答案
@@ -459,34 +501,49 @@ function checkPinyinAnswer(answer, btn) {
 
 // 生成数学题
 function generateMathQuestion() {
-    currentQuestion = mathData[currentDifficulty].generate();
+    // 默认使用加减法，如果有mathSubType则使用指定的类型
+    const mathType = window.mathSubType || 'addsub';
+    currentQuestion = mathData[mathType][currentDifficulty].generate();
 
     document.getElementById('questionText').innerHTML = `
+        <div style="font-size: 1.2rem; color: #667eea; margin-bottom: 10px;">${currentQuestion.type}</div>
         <div style="font-size: 4rem;">${currentQuestion.display} = ?</div>
     `;
 
-    document.getElementById('optionsArea').classList.add('hidden');
-    document.getElementById('inputArea').classList.remove('hidden');
+    // 显示选项区域，隐藏输入区域
+    const optionsArea = document.getElementById('optionsArea');
+    optionsArea.classList.remove('hidden');
+    document.getElementById('inputArea').classList.add('hidden');
 
-    const input = document.getElementById('mathAnswer');
-    input.value = '';
-    input.focus();
+    // 生成4个选项（1个正确答案 + 3个干扰项）
+    const correctAnswer = currentQuestion.answer;
+    const wrongAnswers = [];
 
-    // 回车提交
-    input.onkeypress = (e) => {
-        if (e.key === 'Enter') checkMathAnswer();
-    };
+    // 生成干扰项（与正确答案相近的数字）
+    while (wrongAnswers.length < 3) {
+        const offset = Math.floor(Math.random() * 10) - 5; // -5 到 +4
+        const wrong = correctAnswer + offset;
+        if (wrong !== correctAnswer && wrong > 0 && !wrongAnswers.includes(wrong)) {
+            wrongAnswers.push(wrong);
+        }
+    }
+
+    const allOptions = [correctAnswer, ...wrongAnswers].sort(() => Math.random() - 0.5);
+
+    optionsArea.innerHTML = allOptions.map(opt => `
+        <button class="option-btn" onclick="checkMathAnswer(${opt}, this)" style="font-size: 2rem; font-weight: bold;">
+            ${opt}
+        </button>
+    `).join('');
 }
 
 // 检查数学答案
-function checkMathAnswer() {
+function checkMathAnswer(answer, btn) {
     if (isAnswered) return;
     isAnswered = true;
 
-    const userAnswer = parseInt(document.getElementById('mathAnswer').value);
-    const isCorrect = userAnswer === currentQuestion.answer;
-
-    handleAnswer(isCorrect, null, userAnswer);
+    const isCorrect = answer === currentQuestion.answer;
+    handleAnswer(isCorrect, btn);
 }
 
 // 生成语文识字题
@@ -710,4 +767,19 @@ function savePracticeRecord(score) {
 // 重新开始
 function restartPractice() {
     startPractice();
+}
+
+// 朗读拼音
+function speakPinyin(pinyin) {
+    if (!window.speechSynthesis) return;
+
+    // 取消之前的朗读
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(pinyin);
+    utterance.lang = 'zh-CN';
+    utterance.rate = 0.8; // 稍微慢一点，适合小朋友
+    utterance.pitch = 1.1; // 音调稍高，更亲切
+
+    window.speechSynthesis.speak(utterance);
 }

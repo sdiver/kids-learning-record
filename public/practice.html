@@ -483,10 +483,16 @@
             </div>
 
             <!-- 难度选择 -->
-            <div class="difficulty-selector">
+            <div class="difficulty-selector" id="difficultySelector">
                 <button class="difficulty-btn active" data-level="easy">简单</button>
                 <button class="difficulty-btn" data-level="medium">中等</button>
                 <button class="difficulty-btn" data-level="hard">困难</button>
+            </div>
+
+            <!-- 数学类型选择（仅数学练习显示） -->
+            <div class="difficulty-selector hidden" id="mathTypeSelector">
+                <button class="difficulty-btn active" data-math-type="addsub" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">➕➖ 加减法</button>
+                <button class="difficulty-btn" data-math-type="muldiv" style="background: #e0e0e0; color: #666;">✖️➗ 乘除法</button>
             </div>
 
             <!-- 题目区域 -->

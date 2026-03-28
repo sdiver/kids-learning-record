@@ -178,32 +178,118 @@ async function getPinyin(char) {
     return '';
 }
 
-// 从网络API获取拼音
+// 从网络API获取拼音（备用方案）
 async function fetchPinyinFromAPI(char) {
+    // 优先使用本地字典，避免网络请求
+    const commonPinyin = getCommonPinyin(char);
+    if (commonPinyin) {
+        return commonPinyin;
+    }
+
+    // 如果本地没有，尝试网络API（带超时）
     try {
-        // 使用pinyin-pro的免费API或类似服务
-        // 这里使用一个简单的方法：通过汉典或类似服务
-        // 由于是跨域请求，我们使用一个简单的近似方法
-        
-        // 尝试使用在线拼音服务
-        const response = await fetch(`https://v.api.aa1.cn/api/api-pinyin/pinyin.php?msg=${encodeURIComponent(char)}&type=text`, {
-            method: 'GET',
-            mode: 'cors'
-        });
-        
-        if (response.ok) {
-            const text = await response.text();
-            // 清理返回的拼音
-            const pinyin = text.trim().replace(/[\d\s]/g, '');
-            if (pinyin && pinyin.length > 0) {
-                return pinyin;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000); // 3秒超时
+
+        // 尝试多个备用API
+        const apis = [
+            // 备用API 1
+            `https://v.api.aa1.cn/api/api-pinyin/pinyin.php?msg=${encodeURIComponent(char)}&type=text`,
+            // 备用API 2 - 使用本地后端API
+            `${API_BASE}/pinyin/${encodeURIComponent(char)}`
+        ];
+
+        for (const api of apis) {
+            try {
+                const response = await fetch(api, {
+                    method: 'GET',
+                    signal: controller.signal
+                });
+
+                clearTimeout(timeoutId);
+
+                if (response.ok) {
+                    const text = await response.text();
+                    // 清理返回的拼音
+                    const pinyin = text.trim().replace(/[\d\s]/g, '');
+                    if (pinyin && pinyin.length > 0 && /^[a-zA-Z]+$/.test(pinyin)) {
+                        return pinyin;
+                    }
+                }
+            } catch (apiError) {
+                console.log(`API ${api} 失败，尝试下一个`);
+                continue;
             }
         }
     } catch (e) {
-        console.log('在线拼音API失败，使用备用方案');
+        console.log('在线拼音API全部失败，使用备用方案');
     }
-    
+
+    // 返回空字符串让上层处理
     return '';
+}
+
+// 获取常见字的拼音（本地字典）
+function getCommonPinyin(char) {
+    const commonDict = {
+        // 数字
+        '一': 'yī', '二': 'èr', '三': 'sān', '四': 'sì', '五': 'wǔ',
+        '六': 'liù', '七': 'qī', '八': 'bā', '九': 'jiǔ', '十': 'shí',
+        // 常见字
+        '的': 'de', '是': 'shì', '在': 'zài', '有': 'yǒu', '和': 'hé',
+        '这': 'zhè', '那': 'nà', '个': 'gè', '了': 'le', '不': 'bù',
+        '说': 'shuō', '人': 'rén', '我': 'wǒ', '你': 'nǐ', '他': 'tā',
+        '她': 'tā', '它': 'tā', '们': 'men', '为': 'wèi', '之': 'zhī',
+        '与': 'yǔ', '到': 'dào', '上': 'shàng', '下': 'xià', '中': 'zhōng',
+        '大': 'dà', '小': 'xiǎo', '来': 'lái', '去': 'qù', '走': 'zǒu',
+        '跑': 'pǎo', '吃': 'chī', '喝': 'hē', '看': 'kàn', '见': 'jiàn',
+        '听': 'tīng', '想': 'xiǎng', '知': 'zhī', '道': 'dào', '好': 'hǎo',
+        '多': 'duō', '少': 'shǎo', '很': 'hěn', '太': 'tài', '都': 'dōu',
+        '就': 'jiù', '能': 'néng', '会': 'huì', '要': 'yào', '让': 'ràng',
+        '给': 'gěi', '从': 'cóng', '才': 'cái', '可': 'kě', '以': 'yǐ',
+        '也': 'yě', '没': 'méi', '还': 'hái', '但': 'dàn', '而': 'ér',
+        '只': 'zhǐ', '最': 'zuì', '更': 'gèng', '再': 'zài', '现': 'xiàn',
+        '比': 'bǐ', '被': 'bèi', '已': 'yǐ', '真': 'zhēn', '新': 'xīn',
+        '年': 'nián', '得': 'dé', '出': 'chū', '起': 'qǐ', '家': 'jiā',
+        '心': 'xīn', '面': 'miàn', '打': 'dǎ', '长': 'zhǎng', '方': 'fāng',
+        '成': 'chéng', '什': 'shén', '么': 'me', '名': 'míng', '同': 'tóng',
+        '吧': 'ba', '吗': 'ma', '呢': 'ne', '啊': 'a', '着': 'zhe',
+        '过': 'guò', '里': 'lǐ', '用': 'yòng', '作': 'zuò', '自': 'zì',
+        '前': 'qián', '后': 'hòu', '时': 'shí', '今': 'jīn', '明': 'míng',
+        '天': 'tiān', '月': 'yuè', '日': 'rì', '水': 'shuǐ', '火': 'huǒ',
+        '木': 'mù', '土': 'tǔ', '金': 'jīn', '山': 'shān', '石': 'shí',
+        '田': 'tián', '禾': 'hé', '对': 'duì', '云': 'yún', '雨': 'yǔ',
+        '风': 'fēng', '花': 'huā', '鸟': 'niǎo', '虫': 'chóng', '六': 'liù',
+        '七': 'qī', '八': 'bā', '九': 'jiǔ', '十': 'shí', '爸': 'bà',
+        '妈': 'mā', '哥': 'gē', '姐': 'jiě', '弟': 'dì', '妹': 'mèi',
+        '爷': 'yé', '奶': 'nǎi', '老': 'lǎo', '师': 'shī', '同': 'tóng',
+        '学': 'xué', '友': 'yǒu', '朋': 'péng', '高': 'gāo', '兴': 'xìng',
+        '快': 'kuài', '乐': 'lè', '爱': 'ài', '喜': 'xǐ', '欢': 'huan',
+        '笑': 'xiào', '哭': 'kū', '气': 'qì', '怕': 'pà', '忙': 'máng',
+        '东': 'dōng', '西': 'xī', '南': 'nán', '北': 'běi', '左': 'zuǒ',
+        '右': 'yòu', '早': 'zǎo', '晚': 'wǎn', '春': 'chūn', '夏': 'xià',
+        '秋': 'qiū', '冬': 'dōng', '头': 'tóu', '手': 'shǒu', '足': 'zú',
+        '耳': 'ěr', '目': 'mù', '口': 'kǒu', '牙': 'yá', '舌': 'shé',
+        '唇': 'chún', '发': 'fà', '皮': 'pí', '毛': 'máo', '身': 'shēn',
+        '体': 'tǐ', '胸': 'xiōng', '背': 'bèi', '腰': 'yāo', '腿': 'tuǐ',
+        '脚': 'jiǎo', '眼': 'yǎn', '睛': 'jīng', '眉': 'méi', '鼻': 'bí',
+        '红': 'hóng', '黄': 'huáng', '蓝': 'lán', '绿': 'lǜ', '白': 'bái',
+        '黑': 'hēi', '紫': 'zǐ', '青': 'qīng', '灰': 'huī', '粉': 'fěn',
+        '书': 'shū', '本': 'běn', '笔': 'bǐ', '纸': 'zhǐ', '桌': 'zhuō',
+        '椅': 'yǐ', '门': 'mén', '窗': 'chuāng', '床': 'chuáng', '灯': 'dēng',
+        '衣': 'yī', '服': 'fú', '裤': 'kù', '鞋': 'xié', '帽': 'mào',
+        '袜': 'wà', '裙': 'qún', '猫': 'māo', '狗': 'gǒu', '鸡': 'jī',
+        '鸭': 'yā', '鱼': 'yú', '马': 'mǎ', '牛': 'niú', '羊': 'yáng',
+        '猪': 'zhū', '兔': 'tù', '鸟': 'niǎo', '猴': 'hóu', '虎': 'hǔ',
+        '狼': 'láng', '象': 'xiàng', '熊': 'xióng', '鹿': 'lù', '龟': 'guī',
+        '开': 'kāi', '关': 'guān', '进': 'jìn', '出': 'chū', '坐': 'zuò',
+        '站': 'zhàn', '立': 'lì', '睡': 'shuì', '醒': 'xǐng', '玩': 'wán',
+        '问': 'wèn', '答': 'dá', '告': 'gào', '诉': 'sù', '讲': 'jiǎng',
+        '记': 'jì', '忘': 'wàng', '念': 'niàn', '读': 'dú', '写': 'xiě',
+        '画': 'huà', '唱': 'chàng', '跳': 'tiào', '飞': 'fēi', '游': 'yóu'
+    };
+
+    return commonDict[char] || null;
 }
 
 // 初始化
@@ -293,6 +379,47 @@ function showCharHint(index) {
             hint.classList.remove('hidden');
             setTimeout(() => hint.classList.add('hidden'), 3000);
         }
+    });
+}
+
+// 非阅读模式下显示简单拼音提示
+function showSimplePinyinHint(char) {
+    getPinyin(char).then(pinyin => {
+        // 移除旧的提示
+        const oldHint = document.querySelector('.simple-pinyin-hint');
+        if (oldHint) oldHint.remove();
+
+        // 创建新提示（在点击位置附近显示）
+        const hint = document.createElement('div');
+        hint.className = 'simple-pinyin-hint';
+        hint.innerHTML = `
+            <span style="font-size: 3rem; color: #333;">${char}</span>
+            <span style="font-size: 1.5rem; color: #667eea;">${pinyin || '...'}</span>
+        `;
+        hint.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            z-index: 1000;
+            text-align: center;
+            animation: popIn 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        `;
+        document.body.appendChild(hint);
+
+        // 自动移除
+        setTimeout(() => {
+            hint.style.animation = 'popOut 0.3s ease';
+            setTimeout(() => hint.remove(), 300);
+        }, 1500);
     });
 }
 
@@ -458,12 +585,12 @@ function renderArticle(content) {
         if (char === '\n') {
             html += '<br>';
         } else {
-            // 添加点击事件用于提示模式
-            html += `<span class="char ${isPunct ? 'punct' : ''}" 
-                data-index="${i}" 
+            // 添加点击事件用于朗读和提示
+            html += `<span class="char ${isPunct ? 'punct' : ''}"
+                data-index="${i}"
                 data-char="${char}"
                 onclick="onCharClick(${i}, '${char}')"
-                title="点击看拼音/听发音">${char}</span>`;
+                title="点击听读音 🔊">${char}</span>`;
         }
     }
 
@@ -476,13 +603,27 @@ function renderArticle(content) {
     updateProgress();
 }
 
-// 字符点击处理
+// 字符点击处理 - 优化版：任何时候点击都可以朗读
 function onCharClick(index, char) {
-    if (!isReading) return;
-    
-    // 只有当前字或附近的字可以点击查看提示
-    if (readingConfig.hintMode && Math.abs(index - currentIndex) <= 2) {
-        showCharHint(index);
+    // 播放发音（任何时候点击都可以听发音）
+    speakChar(char);
+
+    // 添加点击视觉反馈
+    const charEl = document.querySelector(`.char[data-index="${index}"]`);
+    if (charEl) {
+        charEl.classList.add('clicked');
+        setTimeout(() => charEl.classList.remove('clicked'), 300);
+    }
+
+    // 只有在阅读模式下才处理提示逻辑
+    if (isReading) {
+        // 只有当前字或附近的字可以点击查看提示
+        if (readingConfig.hintMode && Math.abs(index - currentIndex) <= 2) {
+            showCharHint(index);
+        }
+    } else {
+        // 非阅读模式下，显示简单的拼音提示
+        showSimplePinyinHint(char);
     }
 }
 

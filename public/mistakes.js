@@ -115,26 +115,94 @@ async function getPinyin(char) {
     return '';
 }
 
-// 从网络API获取拼音
+// 从网络API获取拼音（备用方案，优先使用本地字典）
 async function fetchPinyinFromAPI(char) {
+    // 优先使用本地字典
+    const commonPinyin = getCommonPinyin(char);
+    if (commonPinyin) {
+        return commonPinyin;
+    }
+
+    // 本地没有，尝试网络API（带超时）
     try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+
         const response = await fetch(`https://v.api.aa1.cn/api/api-pinyin/pinyin.php?msg=${encodeURIComponent(char)}&type=text`, {
             method: 'GET',
-            mode: 'cors'
+            signal: controller.signal
         });
-        
+
+        clearTimeout(timeoutId);
+
         if (response.ok) {
             const text = await response.text();
             const pinyin = text.trim().replace(/[\d\s]/g, '');
-            if (pinyin && pinyin.length > 0) {
+            if (pinyin && pinyin.length > 0 && /^[a-zA-Z]+$/.test(pinyin)) {
                 return pinyin;
             }
         }
     } catch (e) {
         console.log('在线拼音API失败');
     }
-    
+
     return '';
+}
+
+// 获取常见字的拼音（本地字典）
+function getCommonPinyin(char) {
+    const commonDict = {
+        '一': 'yī', '二': 'èr', '三': 'sān', '四': 'sì', '五': 'wǔ',
+        '六': 'liù', '七': 'qī', '八': 'bā', '九': 'jiǔ', '十': 'shí',
+        '的': 'de', '是': 'shì', '在': 'zài', '有': 'yǒu', '和': 'hé',
+        '这': 'zhè', '那': 'nà', '个': 'gè', '了': 'le', '不': 'bù',
+        '说': 'shuō', '人': 'rén', '我': 'wǒ', '你': 'nǐ', '他': 'tā',
+        '她': 'tā', '它': 'tā', '们': 'men', '为': 'wèi', '之': 'zhī',
+        '与': 'yǔ', '到': 'dào', '上': 'shàng', '下': 'xià', '中': 'zhōng',
+        '大': 'dà', '小': 'xiǎo', '来': 'lái', '去': 'qù', '走': 'zǒu',
+        '跑': 'pǎo', '吃': 'chī', '喝': 'hē', '看': 'kàn', '见': 'jiàn',
+        '听': 'tīng', '想': 'xiǎng', '知': 'zhī', '道': 'dào', '好': 'hǎo',
+        '多': 'duō', '少': 'shǎo', '很': 'hěn', '太': 'tài', '都': 'dōu',
+        '就': 'jiù', '能': 'néng', '会': 'huì', '要': 'yào', '让': 'ràng',
+        '给': 'gěi', '从': 'cóng', '才': 'cái', '可': 'kě', '以': 'yǐ',
+        '也': 'yě', '没': 'méi', '还': 'hái', '但': 'dàn', '而': 'ér',
+        '只': 'zhǐ', '最': 'zuì', '更': 'gèng', '再': 'zài', '现': 'xiàn',
+        '比': 'bǐ', '被': 'bèi', '已': 'yǐ', '真': 'zhēn', '新': 'xīn',
+        '年': 'nián', '得': 'dé', '出': 'chū', '起': 'qǐ', '家': 'jiā',
+        '心': 'xīn', '面': 'miàn', '打': 'dǎ', '长': 'zhǎng', '方': 'fāng',
+        '成': 'chéng', '什': 'shén', '么': 'me', '名': 'míng', '同': 'tóng',
+        '吧': 'ba', '吗': 'ma', '呢': 'ne', '啊': 'a', '着': 'zhe',
+        '过': 'guò', '里': 'lǐ', '用': 'yòng', '作': 'zuò', '自': 'zì',
+        '前': 'qián', '后': 'hòu', '时': 'shí', '今': 'jīn', '明': 'míng',
+        '天': 'tiān', '月': 'yuè', '日': 'rì', '水': 'shuǐ', '火': 'huǒ',
+        '木': 'mù', '土': 'tǔ', '金': 'jīn', '山': 'shān', '石': 'shí',
+        '田': 'tián', '禾': 'hé', '对': 'duì', '云': 'yún', '雨': 'yǔ',
+        '风': 'fēng', '花': 'huā', '鸟': 'niǎo', '虫': 'chóng',
+        '爸': 'bà', '妈': 'mā', '哥': 'gē', '姐': 'jiě', '弟': 'dì',
+        '妹': 'mèi', '爷': 'yé', '奶': 'nǎi', '老': 'lǎo', '师': 'shī',
+        '学': 'xué', '友': 'yǒu', '朋': 'péng', '高': 'gāo', '兴': 'xìng',
+        '快': 'kuài', '乐': 'lè', '爱': 'ài', '喜': 'xǐ', '欢': 'huan',
+        '笑': 'xiào', '东': 'dōng', '西': 'xī', '南': 'nán', '北': 'běi',
+        '左': 'zuǒ', '右': 'yòu', '早': 'zǎo', '晚': 'wǎn', '春': 'chūn',
+        '夏': 'xià', '秋': 'qiū', '冬': 'dōng', '头': 'tóu', '手': 'shǒu',
+        '足': 'zú', '耳': 'ěr', '目': 'mù', '口': 'kǒu', '牙': 'yá',
+        '舌': 'shé', '书': 'shū', '本': 'běn', '笔': 'bǐ', '纸': 'zhǐ',
+        '桌': 'zhuō', '椅': 'yǐ', '门': 'mén', '窗': 'chuāng', '床': 'chuáng',
+        '灯': 'dēng', '衣': 'yī', '服': 'fú', '裤': 'kù', '鞋': 'xié',
+        '帽': 'mào', '袜': 'wà', '裙': 'qún', '猫': 'māo', '狗': 'gǒu',
+        '鸡': 'jī', '鸭': 'yā', '鱼': 'yú', '马': 'mǎ', '牛': 'niú',
+        '羊': 'yáng', '猪': 'zhū', '兔': 'tù', '鸟': 'niǎo', '猴': 'hóu',
+        '虎': 'hǔ', '狼': 'láng', '象': 'xiàng', '熊': 'xióng', '鹿': 'lù',
+        '龟': 'guī', '开': 'kāi', '关': 'guān', '进': 'jìn', '出': 'chū',
+        '坐': 'zuò', '站': 'zhàn', '立': 'lì', '睡': 'shuì', '醒': 'xǐng',
+        '玩': 'wán', '问': 'wèn', '答': 'dá', '告': 'gào', '诉': 'sù',
+        '讲': 'jiǎng', '记': 'jì', '忘': 'wàng', '念': 'niàn', '读': 'dú',
+        '写': 'xiě', '画': 'huà', '唱': 'chàng', '跳': 'tiào', '飞': 'fēi',
+        '游': 'yóu', '红': 'hóng', '黄': 'huáng', '蓝': 'lán', '绿': 'lǜ',
+        '白': 'bái', '黑': 'hēi', '紫': 'zǐ', '青': 'qīng'
+    };
+
+    return commonDict[char] || null;
 }
 
 // 批量获取拼音
@@ -781,16 +849,238 @@ async function generateAIArticle() {
     }
 }
 
-// 调用AI生成文章（这里使用模板方式，实际可以接入API）
+// 调用AI生成文章（使用kimi-code API，内容更自由灵活）
 async function generateArticleWithAI(targetChar, theme, length) {
-    // 模拟API调用延迟
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    // API配置 - 可以从后端获取或使用默认配置
+    const API_CONFIG = {
+        endpoint: localStorage.getItem('kimi_api_endpoint') || 'https://api.moonshot.cn/v1/chat/completions',
+        key: localStorage.getItem('kimi_api_key') || '',
+        model: localStorage.getItem('kimi_model') || 'moonshot-v1-8k'
+    };
 
-    // 基于模板生成文章
-    return generateFallbackArticle(targetChar, theme, length);
+    const lengthMap = { 'short': '50字左右', 'medium': '100字左右', 'long': '200字左右' };
+    const targetLength = lengthMap[length] || '100字左右';
+
+    const themePrompts = {
+        '动物': '以动物为主角的温馨小故事',
+        '自然': '描写大自然美景的散文',
+        '家庭': '关于家庭生活的温馨故事',
+        '学校': '发生在校园里的有趣故事',
+        '童话': '充满想象力的童话故事',
+        '科幻': '面向儿童的科幻小故事'
+    };
+
+    const prompt = `请为6岁小朋友创作一篇${themePrompts[theme] || '儿童故事'}。
+
+要求：
+1. 文章长度${targetLength}
+2. 必须多次出现汉字"${targetChar}"，让小朋友能练习这个字
+3. 内容要生动有趣，适合6岁儿童阅读
+4. 语言简单易懂，句子不要太长
+5. 要有教育意义或趣味性
+6. 直接返回文章标题和正文，格式：标题：XXX\n正文：XXX`;
+
+    try {
+        // 如果有API密钥，尝试调用API
+        if (API_CONFIG.key) {
+            const response = await fetch(API_CONFIG.endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${API_CONFIG.key}`
+                },
+                body: JSON.stringify({
+                    model: API_CONFIG.model,
+                    messages: [
+                        { role: 'system', content: '你是一位擅长创作儿童文学的作家，专门为6岁左右的小朋友创作简单、有趣、易读的故事。' },
+                        { role: 'user', content: prompt }
+                    ],
+                    temperature: 0.8,
+                    max_tokens: 800
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`API请求失败: ${response.status}`);
+            }
+
+            const data = await response.json();
+            const generatedText = data.choices?.[0]?.message?.content || '';
+
+            // 解析返回的内容
+            let title = `${targetChar}的故事`;
+            let content = generatedText;
+
+            // 尝试提取标题和正文
+            const titleMatch = generatedText.match(/[标题：]+\s*([^\n]+)/);
+            const contentMatch = generatedText.match(/[正文：]+\s*([\s\S]+)/);
+
+            if (titleMatch) title = titleMatch[1].trim();
+            if (contentMatch) content = contentMatch[1].trim();
+
+            // 确保包含目标字多次
+            const charCount = (content.match(new RegExp(targetChar, 'g')) || []).length;
+            if (charCount < 3) {
+                content += `\n\n小朋友们，今天我们学习了"${targetChar}"这个字，要记住它的写法哦！`;
+            }
+
+            return { title, content, targetChar };
+        }
+    } catch (error) {
+        console.warn('AI API调用失败，使用备用方案:', error);
+    }
+
+    // 备用方案：使用更丰富的模板生成
+    return generateEnhancedFallbackArticle(targetChar, theme, length);
 }
 
-// 备用文章生成
+// 增强版备用文章生成（更丰富的内容）
+function generateEnhancedFallbackArticle(targetChar, theme, length) {
+    const enhancedTemplates = {
+        '动物': {
+            titles: [`小${targetChar}的冒险`, `${targetChar}找朋友`, `聪明的小${targetChar}`],
+            intros: [
+                `森林里有只可爱的小${targetChar}，它有着闪闪发光的眼睛。`,
+                `小${targetChar}是动物王国里最活泼的小家伙。`,
+                `在一片绿色的草地上，住着一只特别的小${targetChar}。`
+            ],
+            plots: [
+                `一天，小${targetChar}决定去找新朋友。它走啊走，遇到了小兔子。"你愿意和我一起玩吗？"小${targetChar}问道。小兔子高兴地点点头。`,
+                `小${targetChar}最喜欢在森林里探险。今天，它发现了一朵神奇的花。这朵花可以实现一个愿望！小${targetChar}想了想，许了一个美好的愿望。`,
+                `小${targetChar}每天都在学习新本领。它学会了跳跃，学会了奔跑，还学会了唱歌。小伙伴们都夸小${targetChar}真棒！`
+            ],
+            endings: [
+                `从此，小${targetChar}和朋友们快乐地生活在一起。`,
+                `小${targetChar}明白了，友谊是最珍贵的宝藏。`,
+                `这就是小${targetChar}的故事，一个关于勇气和友情的故事。`
+            ]
+        },
+        '自然': {
+            titles: [`美丽的${targetChar}`, `${targetChar}的秘密`, `春天的${targetChar}`],
+            intros: [
+                `在大自然的怀抱里，${targetChar}静静地生长着。`,
+                `每当太阳升起，${targetChar}就开始了新的一天。`,
+                `大自然中，${targetChar}是一道美丽的风景。`
+            ],
+            plots: [
+                `阳光洒在${targetChar}上，闪闪发光。小鸟飞过来，停在${targetChar}旁边唱歌。蝴蝶也飞来了，围着${targetChar}跳舞。`,
+                `下雨了，雨滴落在${targetChar}上，发出好听的声音。${targetChar}喝饱了水，变得更加精神了。`,
+                `风吹过，${targetChar}轻轻摇摆，好像在和风儿打招呼。小朋友们跑过来，围着${targetChar}开心地笑着。`
+            ],
+            endings: [
+                `大自然真美啊，我们要爱护${targetChar}，爱护我们的家园。`,
+                `这就是${targetChar}，大自然送给我们的礼物。`,
+                `让我们一起保护美丽的${targetChar}吧！`
+            ]
+        },
+        '家庭': {
+            titles: [`我家的${targetChar}`, `${targetChar}的故事`, `温暖的${targetChar}`],
+            intros: [
+                `在我的家里，有一个特别的${targetChar}。`,
+                `爸爸妈妈送给我一个${targetChar}，它是我的宝贝。`,
+                `我们一家人都爱${targetChar}，它是我们家的快乐源泉。`
+            ],
+            plots: [
+                `每天早上，我都会和${targetChar}打招呼。${targetChar}好像也在对我微笑呢！`,
+                `晚上，一家人围坐在一起，讲着关于${targetChar}的故事。笑声充满了整个房间。`,
+                `有了${targetChar}，家里变得更温馨了。我爱${targetChar}，也爱我的家。`
+            ],
+            endings: [
+                `家因为有${targetChar}而更加美好。`,
+                `${targetChar}是我们家的幸福见证。`,
+                `我爱我的家，也爱家里的${targetChar}。`
+            ]
+        },
+        '学校': {
+            titles: [`学习"${targetChar}"`, `有趣的${targetChar}`, `课堂上的${targetChar}`],
+            intros: [
+                `今天，老师教我们认识"${targetChar}"这个字。`,
+                `在学校里，我学会了写"${targetChar}"，真开心！`,
+                `语文课上，老师讲了"${targetChar}"的故事。`
+            ],
+            plots: [
+                `老师在黑板上写下"${targetChar}"，告诉我们这个字的意思。同学们都认真地听着，还跟着老师一起读。`,
+                `我拿出铅笔，在作业本上练习写"${targetChar}"。一笔一画，写得可认真了！`,
+                `下课后，我和同学们一起讨论"${targetChar}"。原来这个字这么有趣啊！`
+            ],
+            endings: [
+                `今天我又学会了一个新字，真高兴！`,
+                `"${targetChar}"这个字我会记一辈子的。`,
+                `学习真快乐，我要认识更多的字！`
+            ]
+        },
+        '童话': {
+            titles: [`魔法${targetChar}`, `${targetChar}的奇迹`, `神奇${targetChar}`],
+            intros: [
+                `很久很久以前，有一个神奇的${targetChar}。`,
+                `在童话王国里，${targetChar}有神奇的魔法。`,
+                `传说中，得到${targetChar}的人就能实现愿望。`
+            ],
+            plots: [
+                `小仙女送给小朋友一个${targetChar}，说它有神奇的魔力。小朋友半信半疑地接过${targetChar}。`,
+                `当${targetChar}发出光芒时，奇迹发生了！周围的一切都变得美好起来。`,
+                `原来，${targetChar}的魔法就是让人心中充满爱和希望。`
+            ],
+            endings: [
+                `从此，${targetChar}的魔法一直守护着大家。`,
+                `童话世界因为有${targetChar}而更加精彩。`,
+                `相信魔法，相信美好，就像相信${targetChar}一样。`
+            ]
+        },
+        '科幻': {
+            titles: [`未来${targetChar}`, `${targetChar}号飞船`, `智能${targetChar}`],
+            intros: [
+                `2050年，科学家发明了神奇的${targetChar}。`,
+                `在未来的世界里，每个人都有一个${targetChar}机器人。`,
+                `太空站上，宇航员们正在研究一种新型${targetChar}。`
+            ],
+            plots: [
+                `这个${targetChar}可以飞行，可以说话，还可以帮助人们做很多事情。小朋友们都非常喜欢它。`,
+                `小明拥有一个${targetChar}助手。每天早上，${targetChar}都会叫他起床，还会帮他准备早餐。`,
+                `有一天，${targetChar}带着小明飞上了太空。他们看到了美丽的地球，还有闪闪发光的星星。`
+            ],
+            endings: [
+                `科技让生活更美好，这就是未来的${targetChar}。`,
+                `有了${targetChar}，未来充满无限可能。`,
+                `未来的世界真奇妙，我们要好好学习，创造更多奇迹！`
+            ]
+        }
+    };
+
+    const themeData = enhancedTemplates[theme] || enhancedTemplates['自然'];
+
+    // 随机选择内容
+    const title = themeData.titles[Math.floor(Math.random() * themeData.titles.length)];
+    const intro = themeData.intros[Math.floor(Math.random() * themeData.intros.length)];
+    const plot = themeData.plots[Math.floor(Math.random() * themeData.plots.length)];
+    const ending = themeData.endings[Math.floor(Math.random() * themeData.endings.length)];
+
+    let content = intro + plot + ending;
+
+    // 根据长度调整
+    const lengthMultipliers = { 'short': 0.6, 'medium': 1, 'long': 1.5 };
+    const multiplier = lengthMultipliers[length] || 1;
+
+    if (multiplier > 1) {
+        content += `\n\n${intro.replace(targetChar, targetChar + targetChar)}${plot}${ending}`;
+    }
+
+    if (multiplier < 1) {
+        content = intro + ending;
+    }
+
+    // 确保包含目标字多次
+    if ((content.match(new RegExp(targetChar, 'g')) || []).length < 3) {
+        content += `\n\n小朋友们，今天我们学习了"${targetChar}"这个字。记住，${targetChar}是一个很有趣的字，要多加练习哦！`;
+    }
+
+    return { title, content, targetChar };
+}
+
+// 保留原有简单备用方案
+function generateFallbackArticle(targetChar, theme, length) {
+    return generateEnhancedFallbackArticle(targetChar, theme, length);
+}
 function generateFallbackArticle(targetChar, theme, length) {
     const templates = {
         '动物': [
@@ -957,7 +1247,124 @@ const charVisualData = {
     '草': { emoji: '🌿', desc: '小草', etymology: '草字头+早，早晨的草', memory: '早晨的青草绿油油' },
     '树': { emoji: '🌳', desc: '树木', etymology: '木+对，成对的木', memory: '两棵大树站在一起' },
     '林': { emoji: '🌲', desc: '树林', etymology: '两木为林', memory: '两棵树就是一片小林' },
-    '森': { emoji: '🌲', desc: '森林', etymology: '三木为森', memory: '三棵树就是茂密森林' }
+    '森': { emoji: '🌲', desc: '森林', etymology: '三木为森', memory: '三棵树就是茂密森林' },
+    // 新增常用汉字
+    '一': { emoji: '1️⃣', desc: '数字一', etymology: '一横表示数量一', memory: '一横一竖，最简单的字' },
+    '二': { emoji: '2️⃣', desc: '数字二', etymology: '两横表示数量二', memory: '两横并排，就是二' },
+    '三': { emoji: '3️⃣', desc: '数字三', etymology: '三横表示数量三', memory: '三横排一起，一二三' },
+    '四': { emoji: '4️⃣', desc: '数字四', etymology: '像人口鼻中呼吸的样子', memory: '四方四正，四个角' },
+    '五': { emoji: '5️⃣', desc: '数字五', etymology: '像交错的两绳', memory: '一横一竖交叉，就是五' },
+    '六': { emoji: '6️⃣', desc: '数字六', etymology: '像房屋的形状', memory: '一点一横，像个帽子' },
+    '七': { emoji: '7️⃣', desc: '数字七', etymology: '像切断东西的样子', memory: '一横一竖弯，七上八下' },
+    '八': { emoji: '8️⃣', desc: '数字八', etymology: '像分开的样子', memory: '一撇一捺，像个八字' },
+    '九': { emoji: '9️⃣', desc: '数字九', etymology: '像肘关节弯曲', memory: '一笔弯钩，就是九' },
+    '十': { emoji: '🔟', desc: '数字十', etymology: '一横一竖，表示完备', memory: '横平竖直，十全十美' },
+    '百': { emoji: '💯', desc: '一百', etymology: '一+白，表示很多', memory: '一白就是百，很多很多' },
+    '千': { emoji: '💰', desc: '一千', etymology: '人+十，表示很多', memory: '千人千人，很多很多' },
+    '万': { emoji: '🎋', desc: '一万', etymology: '像蝎子形状，借为数词', memory: '万字像蝎子，代表很多很多' },
+    '爸': { emoji: '👨', desc: '爸爸', etymology: '父+巴，父亲', memory: '爸爸扛着家，很辛苦' },
+    '妈': { emoji: '👩', desc: '妈妈', etymology: '女+马，母亲', memory: '妈妈像马一样勤劳' },
+    '爷': { emoji: '👴', desc: '爷爷', etymology: '父+耶，祖父', memory: '爷爷年纪大，白胡子' },
+    '奶': { emoji: '👵', desc: '奶奶', etymology: '女+乃，祖母', memory: '奶奶很慈祥，做好吃的' },
+    '哥': { emoji: '👦', desc: '哥哥', etymology: '二+可，兄长', memory: '哥哥比我大，保护我' },
+    '姐': { emoji: '👧', desc: '姐姐', etymology: '女+且，姐姐', memory: '姐姐很温柔，照顾我' },
+    '弟': { emoji: '👶', desc: '弟弟', etymology: '丷+弔，弟弟', memory: '弟弟年纪小，很可爱' },
+    '妹': { emoji: '🎀', desc: '妹妹', etymology: '女+未，妹妹', memory: '妹妹像花朵，很美丽' },
+    '我': { emoji: '🙋', desc: '自己', etymology: '像手拿武器，表示自己', memory: '我自己，最棒的我' },
+    '你': { emoji: '👉', desc: '对方', etymology: '人+尔，第二人称', memory: '你就是指对面的你' },
+    '他': { emoji: '👤', desc: '他人', etymology: '人+也，第三人称', memory: '他是别人，不是我' },
+    '她': { emoji: '👩', desc: '女性', etymology: '女+也，女性第三人称', memory: '她是女生，很美丽' },
+    '它': { emoji: '🐾', desc: '动物', etymology: '宀+匕，指物', memory: '它是指小动物' },
+    '这': { emoji: '👇', desc: '这里', etymology: '辶+言，近指', memory: '这就是这里，离我很近' },
+    '那': { emoji: '👆', desc: '那里', etymology: '辶+冉，远指', memory: '那就是那里，离我很远' },
+    '来': { emoji: '🏃', desc: '过来', etymology: '像麦子的形状', memory: '来来来，跑过来' },
+    '去': { emoji: '🚶', desc: '离开', etymology: '像人离开的样子', memory: '去去去，走开啦' },
+    '走': { emoji: '🚶‍♂️', desc: '走路', etymology: '像人摆臂行走', memory: '大步走路，向前走' },
+    '跑': { emoji: '🏃‍♂️', desc: '跑步', etymology: '足+包，快速移动', memory: '跑得飞快，像风一样' },
+    '飞': { emoji: '🦅', desc: '飞翔', etymology: '像鸟展翅飞翔', memory: '小鸟飞上天，翅膀扇动' },
+    '看': { emoji: '👀', desc: '看见', etymology: '手+目，用手遮目远望', memory: '手搭凉棚，远远看' },
+    '见': { emoji: '🙈', desc: '看见', etymology: '目+人，眼睛看见', memory: '看见看见，目字在上' },
+    '听': { emoji: '👂', desc: '听见', etymology: '口+斤，用耳倾听', memory: '用耳朵听，静静听' },
+    '说': { emoji: '💬', desc: '说话', etymology: '言+兑，用嘴表达', memory: '开口说话，言字旁' },
+    '话': { emoji: '🗣️', desc: '话语', etymology: '言+舌，说出的话', memory: '说话用舌头，言字旁' },
+    '吃': { emoji: '🍽️', desc: '吃饭', etymology: '口+乞，吃东西', memory: '张口吃饭，香香香' },
+    '喝': { emoji: '🥤', desc: '喝水', etymology: '口+曷，饮也', memory: '口渴要喝水，口字旁' },
+    '睡': { emoji: '😴', desc: '睡觉', etymology: '目+垂，眼皮垂下', memory: '眼皮垂下，要睡觉' },
+    '醒': { emoji: '🌅', desc: '醒来', etymology: '酉+星，睡醒', memory: '太阳出来，醒来了' },
+    '笑': { emoji: '😄', desc: '微笑', etymology: '竹+夭，像人笑的样子', memory: '竹字头下一个人，笑哈哈' },
+    '哭': { emoji: '😭', desc: '哭泣', etymology: '像犬吠，引申为哭泣', memory: '两只大眼睛，在哭泣' },
+    '爱': { emoji: '❤️', desc: '爱心', etymology: '心+旡，心中有情', memory: '心中有爱，用心爱' },
+    '打': { emoji: '👊', desc: '打击', etymology: '手+丁，用手击打', memory: '用手拍打，提手旁' },
+    '开': { emoji: '📂', desc: '打开', etymology: '两扇门打开', memory: '两扇门，打开了' },
+    '关': { emoji: '📁', desc: '关闭', etymology: '门内有闩，关闭', memory: '门关上了，关关关' },
+    '出': { emoji: '🚪', desc: '出去', etymology: '像脚从坑中迈出', memory: '从家出门，走出去' },
+    '入': { emoji: '➡️', desc: '进入', etymology: '像尖头进入', memory: '尖着头，进入门' },
+    '里': { emoji: '📦', desc: '里面', etymology: '田+土，田地之中', memory: '田字加土，在里面' },
+    '外': { emoji: '🌐', desc: '外面', etymology: '夕+卜，外面', memory: '在外面，不在里面' },
+    '天': { emoji: '☁️', desc: '天空', etymology: '像人头上的天空', memory: '一大为天，头顶上的天' },
+    '地': { emoji: '🌍', desc: '大地', etymology: '土+也，大地', memory: '土也地，脚下大地' },
+    '和': { emoji: '🤝', desc: '和平', etymology: '禾+口，禾苗人口', memory: '禾口和，和谐相处' },
+    '的': { emoji: '⭕', desc: '助词', etymology: '白+勺，表示所属', memory: '白勺的，最常用的' },
+    '了': { emoji: '✅', desc: '完成', etymology: '像婴儿形，借为助词', memory: '弯钩一笔，事情完了' },
+    '在': { emoji: '📍', desc: '存在', etymology: '才+土，在地上', memory: '土上才在，在这里' },
+    '有': { emoji: '🎁', desc: '拥有', etymology: '像手持肉，表示有', memory: '手里拿着肉，有了有了' },
+    '没': { emoji: '🚫', desc: '没有', etymology: '水+殳，水沉没', memory: '三点水加殳，没有了' },
+    '是': { emoji: '✔️', desc: '是的', etymology: '日+正，正直正确', memory: '日下正正，对的' },
+    '不': { emoji: '❌', desc: '不是', etymology: '像花萼形，借为否定', memory: '一横一撇一竖，不要' },
+    '会': { emoji: '🎯', desc: '能够', etymology: '人+云，能也', memory: '人云会，能够做' },
+    '能': { emoji: '💪', desc: '能力', etymology: '像熊的形状，借为能', memory: '像只熊，有能力' },
+    '要': { emoji: '🙏', desc: '需要', etymology: '西+女，要也', memory: '西方女子，想要' },
+    '给': { emoji: '🎁', desc: '给予', etymology: '丝+合，给也', memory: '绞丝旁加合，给你' },
+    '把': { emoji: '🤲', desc: '把握', etymology: '手+巴，握也', memory: '用手握住，提手旁' },
+    '从': { emoji: '👥', desc: '跟随', etymology: '两个人相随', memory: '两个人，一前一后跟从' },
+    '到': { emoji: '📍', desc: '到达', etymology: '至+刀，到达', memory: '到了到了，到达了' },
+    '道': { emoji: '🛤️', desc: '道路', etymology: '辶+首，道路', memory: '走之旁加首，道路' },
+    '路': { emoji: '🛣️', desc: '道路', etymology: '足+各，道路', memory: '足字旁加各，路路路' },
+    '车': { emoji: '🚗', desc: '车子', etymology: '像车的形状', memory: '古代的车，两个轮子' },
+    '船': { emoji: '⛵', desc: '船只', etymology: '舟+㕣，水上工具', memory: '舟字旁加几口，船' },
+    '机': { emoji: '⚙️', desc: '机器', etymology: '木+几，机会', memory: '木字旁加几，机器' },
+    '电': { emoji: '⚡', desc: '电力', etymology: '像闪电形状', memory: '闪电弯弯，是电' },
+    '灯': { emoji: '💡', desc: '灯光', etymology: '火+丁，照明工具', memory: '火字旁加丁，灯灯灯' },
+    '话': { emoji: '🗣️', desc: '话语', etymology: '言+舌，言语', memory: '言字旁加舌，说话' },
+    '吗': { emoji: '❓', desc: '疑问', etymology: '口+马，疑问词', memory: '口字旁加马，对吗' },
+    '呢': { emoji: '❔', desc: '疑问', etymology: '口+尼，疑问词', memory: '口字旁加尼，你呢' },
+    '吧': { emoji: '❗', desc: '语气词', etymology: '口+巴，语气词', memory: '口字旁加巴，好吧' },
+    '很': { emoji: '📈', desc: '很非常', etymology: '彳+艮，很也', memory: '双人旁加艮，很好' },
+    '都': { emoji: '🏘️', desc: '全都', etymology: '者+阝，都也', memory: '全都在，都都都' },
+    '得': { emoji: '🎉', desc: '得到', etymology: '彳+旦+寸，获得', memory: '双人旁加旦寸，得到' },
+    '着': { emoji: '👔', desc: '穿着', etymology: '羊+目，附着', memory: '羊目着，穿着' },
+    '过': { emoji: '⏮️', desc: '过去', etymology: '辶+寸，经过', memory: '走之旁加寸，过去' },
+    '还': { emoji: '🔙', desc: '还有', etymology: '辶+不，还有', memory: '走之旁加不，还有' },
+    '让': { emoji: '🙌', desc: '让', etymology: '言+上，让也', memory: '言字旁加上，让让' },
+    '再': { emoji: '🔁', desc: '再次', etymology: '一+冉，再次', memory: '一再再，再一次' },
+    '只': { emoji: '1️⃣', desc: '只有', etymology: '像鸟一只', memory: '八口只，一只鸟' },
+    '最': { emoji: '🏆', desc: '最', etymology: '日+取+夂，最也', memory: '日取夂，最最好' },
+    '现': { emoji: '👁️', desc: '现在', etymology: '王+见，显现', memory: '王字旁加见，现在' },
+    '比': { emoji: '⚖️', desc: '比较', etymology: '像两人相比', memory: '两人比一比' },
+    '被': { emoji: '🛌', desc: '被子', etymology: '衣+皮，被子', memory: '衣字旁加皮，被子' },
+    '已': { emoji: '✔️', desc: '已经', etymology: '像胎儿形', memory: '已半巳满，已经' },
+    '真': { emoji: '💎', desc: '真实', etymology: '十+具，真实', memory: '十字头下加具，真的' },
+    '年': { emoji: '📅', desc: '年份', etymology: '禾+千，年也', memory: '禾字加千，一年年' },
+    '当': { emoji: '⚖️', desc: '当时', etymology: '像田中有物', memory: '小字头加彐，当时' },
+    '午': { emoji: '🕛', desc: '中午', etymology: '像舂米棒', memory: '干字出头，中午' },
+    '后': { emoji: '↩️', desc: '后面', etymology: '像脚后跟着地', memory: '厂字下加口，后面' },
+    '作': { emoji: '✍️', desc: '作业', etymology: '人+乍，工作', memory: '单人旁加乍，作业' },
+    '方': { emoji: '⬜', desc: '方向', etymology: '像工具形', memory: '点横万，方向' },
+    '成': { emoji: '🏆', desc: '成功', etymology: '戊+丁，成就', memory: '成了成了，成功了' },
+    '什': { emoji: '❓', desc: '什么', etymology: '人+十，什么', memory: '单人旁加十，什么' },
+    '么': { emoji: '❔', desc: '什么', etymology: '像幺的变形', memory: '撇撇折点，什么' },
+    '名': { emoji: '🏷️', desc: '名字', etymology: '夕+口，名字', memory: '夕字加口，名字' },
+    '同': { emoji: '👥', desc: '相同', etymology: '冂+一+口，相同', memory: '同字框加一和口，同' },
+    '问': { emoji: '❓', desc: '问题', etymology: '门+口，询问', memory: '门字框加口，问问' },
+    '回': { emoji: '🔁', desc: '回来', etymology: '口+口，回旋', memory: '大口套小口，回来' },
+    '谁': { emoji: '👤', desc: '谁人', etymology: '言+隹，谁人', memory: '言字旁加隹，谁' },
+    '也': { emoji: '〰️', desc: '也是', etymology: '像女阴形，借为也', memory: '横折钩竖弯钩，也' },
+    '想': { emoji: '💭', desc: '想念', etymology: '相+心，思考', memory: '相字加心，想念' },
+    '但': { emoji: '⛔', desc: '但是', etymology: '人+旦，但是', memory: '单人旁加旦，但是' },
+    '自': { emoji: '👤', desc: '自己', etymology: '像鼻子形状', memory: '像鼻子，自己' },
+    '用': { emoji: '🔧', desc: '使用', etymology: '像桶形，借为用', memory: '像桶，使用' },
+    '才': { emoji: '🌱', desc: '才能', etymology: '像草木初生', memory: '一横一竖钩，才' },
+    '对': { emoji: '✅', desc: '正确', etymology: '业+寸，正确', memory: '又字旁加寸，对' }
 };
 
 // 通用记忆法生成器（用于没有预定义的字）
@@ -972,7 +1379,15 @@ function generateGenericVisual(char, pinyin) {
         '讠': { name: '言字旁', meaning: '和说话有关', emoji: '💬' },
         '纟': { name: '绞丝旁', meaning: '和丝线有关', emoji: '🧵' },
         '忄': { name: '竖心旁', meaning: '和心理有关', emoji: '❤️' },
-        '宀': { name: '宝盖头', meaning: '和房屋有关', emoji: '🏠' }
+        '宀': { name: '宝盖头', meaning: '和房屋有关', emoji: '🏠' },
+        '辶': { name: '走之旁', meaning: '和行走有关', emoji: '🚶' },
+        '阝': { name: '双耳旁', meaning: '和山丘或城市有关', emoji: '🏔️' },
+        '钅': { name: '金字旁', meaning: '和金属有关', emoji: '⚙️' },
+        '火': { name: '火字旁', meaning: '和火有关', emoji: '🔥' },
+        '女': { name: '女字旁', meaning: '和女性有关', emoji: '👩' },
+        '男': { name: '男字旁', meaning: '和男性有关', emoji: '👨' },
+        '日': { name: '日字旁', meaning: '和太阳、时间有关', emoji: '☀️' },
+        '月': { name: '月字旁', meaning: '和月亮、身体有关', emoji: '🌙' }
     };
 
     // 检查部首
@@ -981,18 +1396,18 @@ function generateGenericVisual(char, pinyin) {
             return {
                 emoji: info.emoji,
                 desc: `包含"${info.name}"`,
-                etymology: `${info.name}${info.meaning}`,
+                etymology: `${info.name}，${info.meaning}`,
                 memory: `${char}字有${info.name}，${info.meaning}`
             };
         }
     }
 
-    // 默认返回
+    // 默认返回 - 使用汉字本身作为视觉
     return {
-        emoji: '✨',
-        desc: '神奇的汉字',
-        etymology: '每个汉字都有它独特的故事和来历',
-        memory: `"${char}"读作${pinyin}，用心记住它！`
+        emoji: '📝',
+        desc: `汉字"${char}"`,
+        etymology: `"${char}"是一个美丽的汉字，读作${pinyin || '...'}`,
+        memory: `"${char}"字要记牢，多读多写就会了！`
     };
 }
 
