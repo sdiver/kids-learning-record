@@ -588,7 +588,7 @@ function renderArticle(content) {
     let html = '';
     for (let i = 0; i < content.length; i++) {
         const char = content[i];
-        const isPunct = /[，。！？、；：""''（）【】]/.test(char);
+        const isPunct = /[，。！？、；：""''（）【】「」『』〈〉《》…—～·\s\r\n"'`!?,.:;()\[\]{}\-]/.test(char);
 
         if (char === '\n') {
             html += '<br>';
@@ -791,7 +791,7 @@ function processRecognizedTextAdvanced(alternatives) {
     // 处理所有候选结果
     for (const text of alternatives) {
         // 去除空格和标点
-        const cleanText = text.replace(/[，。！？、；：""''（）【】\s]/g, '');
+        const cleanText = text.replace(/[，。！？、；：""''（）【】「」『』〈〉《》…—～·\s\r\n"'`!?,.:;()\[\]{}\-]/g, '');
 
         console.log('清理后文本:', cleanText, '当前索引:', currentIndex);
 
