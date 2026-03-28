@@ -592,21 +592,33 @@ function generatePinyinQuestion() {
 // 生成差异化的拼音选项（不是同音字，而是完全不同的字）
 function generatePinyinOptions(question) {
     const options = [question.correct];
+    const correctLen = [...question.correct].length;
 
-    // 使用预设的干扰项
-    if (question.wrongOptions && question.wrongOptions.length >= 3) {
+    // 先用预设的干扰项
+    if (question.wrongOptions && question.wrongOptions.length > 0) {
         options.push(...question.wrongOptions.slice(0, 3));
-    } else {
-        // 从常用字库中随机选择干扰项（确保不与正确答案同音）
-        const charPool = commonChars[currentDifficulty] || commonChars.easy;
-        const wrongOptions = charPool.filter(c => c !== question.correct);
+    }
 
-        while (options.length < 4 && wrongOptions.length > 0) {
-            const randomIndex = Math.floor(Math.random() * wrongOptions.length);
-            const char = wrongOptions.splice(randomIndex, 1)[0];
-            if (!options.includes(char)) {
-                options.push(char);
-            }
+    // 选项不够4个时，从同难度同字数的其他题目中补充
+    if (options.length < 4) {
+        const allQuestions = pinyinData[currentDifficulty] || pinyinData.easy;
+        const sameLen = allQuestions
+            .map(q => q.correct)
+            .filter(c => [...c].length === correctLen && !options.includes(c));
+
+        while (options.length < 4 && sameLen.length > 0) {
+            const idx = Math.floor(Math.random() * sameLen.length);
+            options.push(sameLen.splice(idx, 1)[0]);
+        }
+    }
+
+    // 仍不够时，从单字库兜底补充
+    if (options.length < 4) {
+        const charPool = commonChars[currentDifficulty] || commonChars.easy;
+        const pool = charPool.filter(c => !options.includes(c));
+        while (options.length < 4 && pool.length > 0) {
+            const idx = Math.floor(Math.random() * pool.length);
+            options.push(pool.splice(idx, 1)[0]);
         }
     }
 
