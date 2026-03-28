@@ -47,18 +47,9 @@ function authenticateToken(req, res, next) {
     });
 }
 
-// CORS配置 - 只允许特定来源
-const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['http://localhost:3000', 'http://localhost:8080'];
+// CORS配置 - 家用NAS私有服务，允许所有来源
 app.use(cors({
-    origin: function(origin, callback) {
-        // 允许没有origin的请求（如Postman测试）
-        if (!origin) return callback(null, true);
-        if (allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            callback(new Error('不允许的来源'));
-        }
-    },
+    origin: true,
     credentials: true
 }));
 app.use(express.json());
