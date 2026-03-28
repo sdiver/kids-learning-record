@@ -554,6 +554,12 @@ function initAddArticleModal() {
     });
 }
 
+// 预加载文章中所有汉字的拼音到 pinyinCache（异步，不阻塞渲染）
+function preloadArticlePinyins(content) {
+    const chars = [...new Set(content.split('').filter(c => /[\u4e00-\u9fa5]/.test(c)))];
+    chars.forEach(c => getPinyin(c)); // getPinyin 内部自动缓存
+}
+
 // 选择文章
 function selectArticle(id) {
     currentArticle = allArticles.find(a => a.id === id);
@@ -566,6 +572,9 @@ function selectArticle(id) {
 
     document.getElementById('articleTitle').textContent =
         currentArticle.title + (currentArticle.author ? ` - ${currentArticle.author}` : '');
+
+    // 预加载拼音（异步，尽早触发以便识别时已缓存）
+    preloadArticlePinyins(currentArticle.content);
 
     // 渲染文章
     renderArticle(currentArticle.content);
@@ -864,6 +873,16 @@ function tryMatchText(text) {
     return false;
 }
 
+// 去掉 Unicode 声调符号，用于同音字比对
+function stripTones(pinyin) {
+    return pinyin.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+// 获取某个字的已缓存拼音（同步，优先 pinyinCache，其次 localPinyinDict）
+function getCachedPinyin(char) {
+    return pinyinCache[char] || localPinyinDict[char] || null;
+}
+
 // 高级匹配检查 - 多种策略
 function checkMatchAdvanced(expected, recognized) {
     // 1. 完全匹配
@@ -871,17 +890,17 @@ function checkMatchAdvanced(expected, recognized) {
         return { isMatch: true, confident: true, exact: true };
     }
 
-    // 2. 拼音匹配（容错声调）- 算正确但记录到错字本
-    const expectedPinyin = localPinyinDict[expected];
-    const recognizedPinyin = localPinyinDict[recognized];
+    // 2. 拼音匹配（同音 / 近音）- 算正确但记录到错字本
+    //    同时查 pinyinCache（服务端预取）和 localPinyinDict（本地内置）
+    const expectedPinyin = getCachedPinyin(expected);
+    const recognizedPinyin = getCachedPinyin(recognized);
 
     if (expectedPinyin && recognizedPinyin) {
-        // 去除声调比较
-        const expBase = expectedPinyin.replace(/[1234]/g, '');
-        const recBase = recognizedPinyin.replace(/[1234]/g, '');
+        // 去除 Unicode 声调后比较（字典用 ā é ī 等 Unicode 音调符号）
+        const expBase = stripTones(expectedPinyin);
+        const recBase = stripTones(recognizedPinyin);
 
         if (expBase === recBase) {
-            // 同音字，阅读流畅性算正确，但记录到错字本
             return { isMatch: true, confident: true, exact: false, reason: '同音字' };
         }
 
@@ -901,7 +920,7 @@ function checkMatchAdvanced(expected, recognized) {
         return { isMatch: true, confident: true, exact: false, reason: '常见混淆' };
     }
 
-    // 5. 如果两个字都不在字典中，可能是特殊字符，保守处理
+    // 5. 如果两个字都不在任何字典中，可能是特殊字符，保守处理
     if (!expectedPinyin && !recognizedPinyin) {
         return { isMatch: false, confident: false };
     }
