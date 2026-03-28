@@ -12,6 +12,9 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
+// 信任反向代理（Nginx/Portal），确保 rate-limit 能正确识别客户端 IP
+app.set('trust proxy', 1);
+
 // 安全中间件
 app.use(helmet({
     contentSecurityPolicy: false, // 允许内联脚本（当前应用需要）
