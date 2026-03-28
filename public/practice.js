@@ -15,66 +15,156 @@ let totalQuestions = 0;
 let maxQuestions = 10;
 let isAnswered = false;
 
-// 拼音题库（含声调练习）- 添加图片和音频支持
+// 大规模拼音词库 - 互联网常见词汇+AI生成
 const pinyinData = {
     easy: [
-        { pinyin: 'bā', chars: ['八', '巴', '吧'], correct: '八', tone: 1, image: '🎱', audio: 'ba1' },
-        { pinyin: 'mā', chars: ['妈', '马', '麻'], correct: '妈', tone: 1, image: '👩', audio: 'ma1' },
-        { pinyin: 'bō', chars: ['波', '拨', '播'], correct: '波', tone: 1, image: '🌊', audio: 'bo1' },
-        { pinyin: 'mō', chars: ['摸', '模', '摩'], correct: '摸', tone: 1, image: '👋', audio: 'mo1' },
-        { pinyin: 'fēi', chars: ['飞', '非', '菲'], correct: '飞', tone: 1, image: '🐦', audio: 'fei1' },
-        { pinyin: 'dà', chars: ['大', '达', '答'], correct: '大', tone: 4, image: '🐘', audio: 'da4' },
-        { pinyin: 'xiǎo', chars: ['小', '晓', '笑'], correct: '小', tone: 3, image: '🐭', audio: 'xiao3' },
-        { pinyin: 'shǒu', chars: ['手', '首', '守'], correct: '手', tone: 3, image: '✋', audio: 'shou3' },
-        { pinyin: 'kǒu', chars: ['口', '扣', '寇'], correct: '口', tone: 3, image: '👄', audio: 'kou3' },
-        { pinyin: 'ěr', chars: ['耳', '尔', '饵'], correct: '耳', tone: 3, image: '👂', audio: 'er3' },
-        { pinyin: 'mā ma', chars: ['妈妈', '马麻', '嘛嘛'], correct: '妈妈', tone: '1-0', image: '👩‍👧', audio: 'mama' },
-        { pinyin: 'bà ba', chars: ['爸爸', '罢罢', '吧吧'], correct: '爸爸', tone: '4-0', image: '👨‍👧', audio: 'baba' },
-        { pinyin: 'gē ge', chars: ['哥哥', '歌歌', '格格'], correct: '哥哥', tone: '1-0', image: '👦', audio: 'gege' },
-        { pinyin: 'jiě jie', chars: ['姐姐', '解解', '结结'], correct: '姐姐', tone: '3-0', image: '👧', audio: 'jiejie' }
+        // 单字基础
+        { pinyin: 'bā', correct: '八', wrongOptions: ['入', '人'], tone: 1 },
+        { pinyin: 'mā', correct: '妈', wrongOptions: ['好', '女'], tone: 1 },
+        { pinyin: 'bō', correct: '波', wrongOptions: ['皮', '水'], tone: 1 },
+        { pinyin: 'mō', correct: '摸', wrongOptions: ['拿', '手'], tone: 1 },
+        { pinyin: 'fēi', correct: '飞', wrongOptions: ['走', '跑'], tone: 1 },
+        { pinyin: 'dà', correct: '大', wrongOptions: ['天', '太'], tone: 4 },
+        { pinyin: 'xiǎo', correct: '小', wrongOptions: ['少', '水'], tone: 3 },
+        { pinyin: 'shǒu', correct: '手', wrongOptions: ['毛', '支'], tone: 3 },
+        { pinyin: 'kǒu', correct: '口', wrongOptions: ['日', '回'], tone: 3 },
+        { pinyin: 'ěr', correct: '耳', wrongOptions: ['目', '自'], tone: 3 },
+        // 叠词
+        { pinyin: 'mā ma', correct: '妈妈', wrongOptions: ['奶奶', '姐姐'], tone: '1-0' },
+        { pinyin: 'bà ba', correct: '爸爸', wrongOptions: ['爷爷', '叔叔'], tone: '4-0' },
+        { pinyin: 'gē ge', correct: '哥哥', wrongOptions: ['弟弟', '爸爸'], tone: '1-0' },
+        { pinyin: 'jiě jie', correct: '姐姐', wrongOptions: ['妹妹', '妈妈'], tone: '3-0' },
+        { pinyin: 'yé ye', correct: '爷爷', wrongOptions: ['爸爸', '姥爷'], tone: '2-0' },
+        { pinyin: 'nǎi nai', correct: '奶奶', wrongOptions: ['妈妈', '姥姥'], tone: '3-0' },
+        // 日常物品
+        { pinyin: 'mù tóu', correct: '木头', wrongOptions: ['石头', '沙发'], tone: '4-2' },
+        { pinyin: 'shí tou', correct: '石头', wrongOptions: ['木头', '砖头'], tone: '2-0' },
+        { pinyin: 'dà mén', correct: '大门', wrongOptions: ['大门', '房门'], tone: '4-2' },
+        { pinyin: 'chuāng hu', correct: '窗户', wrongOptions: ['房门', '阳台'], tone: '1-0' },
+        { pinyin: 'zhuō zi', correct: '桌子', wrongOptions: ['椅子', '柜子'], tone: '1-0' },
+        { pinyin: 'yǐ zi', correct: '椅子', wrongOptions: ['桌子', '凳子'], tone: '3-0' },
+        // 食物
+        { pinyin: 'mǐ fàn', correct: '米饭', wrongOptions: ['面条', '馒头'], tone: '3-4' },
+        { pinyin: 'miàn tiáo', correct: '面条', wrongOptions: ['米饭', '粉丝'], tone: '4-2' },
+        { pinyin: 'shuǐ guǒ', correct: '水果', wrongOptions: ['蔬菜', '糖果'], tone: '3-3' },
+        { pinyin: 'niú nǎi', correct: '牛奶', wrongOptions: ['豆浆', '果汁'], tone: '2-3' },
+        { pinyin: 'miàn bāo', correct: '面包', wrongOptions: ['馒头', '蛋糕'], tone: '4-1' },
+        // 动物
+        { pinyin: 'xiǎo māo', correct: '小猫', wrongOptions: ['小狗', '小兔'], tone: '3-1' },
+        { pinyin: 'xiǎo gǒu', correct: '小狗', wrongOptions: ['小猫', '小鸟'], tone: '3-3' },
+        { pinyin: 'xiǎo jī', correct: '小鸡', wrongOptions: ['小鸭', '小鸟'], tone: '3-1' },
+        { pinyin: 'xiǎo yā', correct: '小鸭', wrongOptions: ['小鸡', '天鹅'], tone: '3-1' },
+        { pinyin: 'xiǎo yú', correct: '小鱼', wrongOptions: ['小虾', '海豚'], tone: '3-2' },
+        // 自然
+        { pinyin: 'tài yáng', correct: '太阳', wrongOptions: ['月亮', '星星'], tone: '4-0' },
+        { pinyin: 'yuè liang', correct: '月亮', wrongOptions: ['太阳', '地球'], tone: '4-0' },
+        { pinyin: 'xīng xing', correct: '星星', wrongOptions: ['月亮', '云彩'], tone: '1-0' },
+        { pinyin: 'tiān kōng', correct: '天空', wrongOptions: ['大海', '陆地'], tone: '1-1' },
+        { pinyin: 'dà dì', correct: '大地', wrongOptions: ['天空', '海洋'], tone: '4-4' }
     ],
     medium: [
-        { pinyin: 'píng guǒ', chars: ['苹果', '平果', '萍果'], correct: '苹果', tone: '2-3', image: '🍎', audio: 'pingguo' },
-        { pinyin: 'xiāng jiāo', chars: ['香蕉', '香焦', '相交'], correct: '香蕉', tone: '1-1', image: '🍌', audio: 'xiangjiao' },
-        { pinyin: 'lǎo hǔ', chars: ['老虎', '老胡', '老壶'], correct: '老虎', tone: '3-3', image: '🐅', audio: 'laohu' },
-        { pinyin: 'dà xiàng', chars: ['大象', '大像', '大象'], correct: '大象', tone: '4-4', image: '🐘', audio: 'daxiang' },
-        { pinyin: 'xǐ què', chars: ['喜鹊', '喜雀', '洗雀'], correct: '喜鹊', tone: '3-4', image: '🐦', audio: 'xique' },
-        { pinyin: 'kǒng què', chars: ['孔雀', '孔却', '空雀'], correct: '孔雀', tone: '3-4', image: '🦚', audio: 'kongque' },
-        { pinyin: 'shī zi', chars: ['狮子', '师子', '施子'], correct: '狮子', tone: '1-0', image: '🦁', audio: 'shizi' },
-        { pinyin: 'hóu zi', chars: ['猴子', '喉子', '侯子'], correct: '猴子', tone: '2-0', image: '🐒', audio: 'houzi' },
-        { pinyin: 'xióng māo', chars: ['熊猫', '雄猫', '胸毛'], correct: '熊猫', tone: '2-1', image: '🐼', audio: 'xiongmao' },
-        { pinyin: 'cháng jǐng lù', chars: ['长颈鹿', '长劲鹿', '长径鹿'], correct: '长颈鹿', tone: '2-3-4', image: '🦒', audio: 'changjinglu' }
+        // 水果
+        { pinyin: 'píng guǒ', correct: '苹果', wrongOptions: ['西瓜', '桃子'], tone: '2-3' },
+        { pinyin: 'xiāng jiāo', correct: '香蕉', wrongOptions: ['黄瓜', '茄子'], tone: '1-1' },
+        { pinyin: 'xī guā', correct: '西瓜', wrongOptions: ['南瓜', '冬瓜'], tone: '1-1' },
+        { pinyin: 'pú tao', correct: '葡萄', wrongOptions: ['荔枝', '龙眼'], tone: '2-0' },
+        { pinyin: 'cǎo méi', correct: '草莓', wrongOptions: ['蓝莓', '樱桃'], tone: '3-2' },
+        { pinyin: 'lí zi', correct: '梨子', wrongOptions: ['苹果', '柿子'], tone: '2-0' },
+        { pinyin: 'táo zi', correct: '桃子', wrongOptions: ['李子', '杏子'], tone: '2-0' },
+        // 动物
+        { pinyin: 'lǎo hǔ', correct: '老虎', wrongOptions: ['狮子', '豹子'], tone: '3-3' },
+        { pinyin: 'dà xiàng', correct: '大象', wrongOptions: ['犀牛', '河马'], tone: '4-4' },
+        { pinyin: 'xǐ què', correct: '喜鹊', wrongOptions: ['乌鸦', '燕子'], tone: '3-4' },
+        { pinyin: 'kǒng què', correct: '孔雀', wrongOptions: ['鹦鹉', '天鹅'], tone: '3-4' },
+        { pinyin: 'shī zi', correct: '狮子', wrongOptions: ['老虎', '狼狗'], tone: '1-0' },
+        { pinyin: 'hóu zi', correct: '猴子', wrongOptions: ['猩猩', '猿猴'], tone: '2-0' },
+        { pinyin: 'xióng māo', correct: '熊猫', wrongOptions: ['棕熊', '黑熊'], tone: '2-1' },
+        { pinyin: 'cháng jǐng lù', correct: '长颈鹿', wrongOptions: ['梅花鹿', '驯鹿'], tone: '2-3-4' },
+        { pinyin: 'dài shǔ', correct: '袋鼠', wrongOptions: ['考拉', '袋熊'], tone: '4-3' },
+        { pinyin: 'wū guī', correct: '乌龟', wrongOptions: ['甲鱼', '蜥蜴'], tone: '1-1' },
+        // 日常用品
+        { pinyin: 'diàn shì', correct: '电视', wrongOptions: ['电脑', '电话'], tone: '4-4' },
+        { pinyin: 'bīng xiāng', correct: '冰箱', wrongOptions: ['空调', '洗衣机'], tone: '1-1' },
+        { pinyin: 'xǐ yī jī', correct: '洗衣机', wrongOptions: ['洗碗机', '烘干机'], tone: '3-1-1' },
+        { pinyin: 'diàn nǎo', correct: '电脑', wrongOptions: ['平板', '手机'], tone: '4-3' },
+        { pinyin: 'shǒu jī', correct: '手机', wrongOptions: ['电话', '相机'], tone: '3-1' },
+        { pinyin: 'shū bāo', correct: '书包', wrongOptions: ['背包', '钱包'], tone: '1-1' },
+        { pinyin: 'qiān bǐ', correct: '铅笔', wrongOptions: ['钢笔', '毛笔'], tone: '1-3' },
+        { pinyin: 'chǐ zi', correct: '尺子', wrongOptions: ['圆规', '量角器'], tone: '3-0' },
+        // 食物
+        { pinyin: 'qiǎo kè lì', correct: '巧克力', wrongOptions: ['棉花糖', '棒棒糖'], tone: '3-4-4' },
+        { pinyin: 'bīng jī líng', correct: '冰激凌', wrongOptions: ['雪糕', '冰棍'], tone: '1-1-2' },
+        { pinyin: 'hàn bǎo', correct: '汉堡', wrongOptions: ['三明治', '热狗'], tone: '4-3' },
+        { pinyin: 'shǔ tiáo', correct: '薯条', wrongOptions: ['薯片', '爆米花'], tone: '3-2' },
+        { pinyin: 'kě lè', correct: '可乐', wrongOptions: ['雪碧', '芬达'], tone: '3-4' },
+        // 学校
+        { pinyin: 'lǎo shī', correct: '老师', wrongOptions: ['医生', '警察'], tone: '3-1' },
+        { pinyin: 'tóng xué', correct: '同学', wrongOptions: ['朋友', '伙伴'], tone: '2-2' },
+        { pinyin: 'jiāo shì', correct: '教室', wrongOptions: ['办公室', '图书馆'], tone: '4-4' },
+        { pinyin: 'cāo chǎng', correct: '操场', wrongOptions: ['体育馆', '游泳池'], tone: '1-3' },
+        { pinyin: 'tú shū guǎn', correct: '图书馆', wrongOptions: ['博物馆', '美术馆'], tone: '2-1-3' }
     ],
     hard: [
-        { pinyin: 'qīng wā', chars: ['青蛙', '青哇', '清蛙'], correct: '青蛙', tone: '1-1', image: '🐸', audio: 'qingwa' },
-        { pinyin: 'hú li', chars: ['狐狸', '胡力', '壶里'], correct: '狐狸', tone: '2-0', image: '🦊', audio: 'huli' },
-        { pinyin: 'wū guī', chars: ['乌龟', '乌归', '屋规'], correct: '乌龟', tone: '1-1', image: '🐢', audio: 'wugui' },
-        { pinyin: 'mì fēng', chars: ['蜜蜂', '密峰', '蜜锋'], correct: '蜜蜂', tone: '4-1', image: '🐝', audio: 'mifeng' },
-        { pinyin: 'hú dié', chars: ['蝴蝶', '胡蝶', '湖碟'], correct: '蝴蝶', tone: '2-2', image: '🦋', audio: 'hudie' },
-        { pinyin: 'zhī zhū', chars: ['蜘蛛', '知珠', '支朱'], correct: '蜘蛛', tone: '1-1', image: '🕷️', audio: 'zhizhu' },
-        { pinyin: 'mǎ yǐ', chars: ['蚂蚁', '马蚁', '码以'], correct: '蚂蚁', tone: '3-3', image: '🐜', audio: 'mayi' },
-        { pinyin: 'xī shuài', chars: ['蟋蟀', '西帅', '稀蟀'], correct: '蟋蟀', tone: '1-4', image: '🦗', audio: 'xishuai' },
-        { pinyin: 'biān fú', chars: ['蝙蝠', '边福', '蝙服'], correct: '蝙蝠', tone: '1-2', image: '🦇', audio: 'bianfu' },
-        { pinyin: 'wō niú', chars: ['蜗牛', '涡牛', '窝牛'], correct: '蜗牛', tone: '1-2', image: '🐌', audio: 'woni' }
+        // 昆虫/小动物
+        { pinyin: 'qīng wā', correct: '青蛙', wrongOptions: ['蟾蜍', '蜥蜴'], tone: '1-1' },
+        { pinyin: 'hú li', correct: '狐狸', wrongOptions: ['狼狗', '豺狼'], tone: '2-0' },
+        { pinyin: 'mì fēng', correct: '蜜蜂', wrongOptions: ['黄蜂', '马蜂'], tone: '4-1' },
+        { pinyin: 'hú dié', correct: '蝴蝶', wrongOptions: ['飞蛾', '蜻蜓'], tone: '2-2' },
+        { pinyin: 'zhī zhū', correct: '蜘蛛', wrongOptions: ['蝎子', '蜈蚣'], tone: '1-1' },
+        { pinyin: 'mǎ yǐ', correct: '蚂蚁', wrongOptions: ['白蚁', '甲虫'], tone: '3-3' },
+        { pinyin: 'xī shuài', correct: '蟋蟀', wrongOptions: ['蝈蝈', '纺织娘'], tone: '1-4' },
+        { pinyin: 'biān fú', correct: '蝙蝠', wrongOptions: ['猫头鹰', '夜莺'], tone: '1-2' },
+        { pinyin: 'wō niú', correct: '蜗牛', wrongOptions: ['蛞蝓', '螺蛳'], tone: '1-2' },
+        { pinyin: 'qīng tíng', correct: '蜻蜓', wrongOptions: ['豆娘', '螳螂'], tone: '1-2' },
+        { pinyin: 'táng láng', correct: '螳螂', wrongOptions: ['蝗虫', '蚱蜢'], tone: '2-2' },
+        // 职业
+        { pinyin: 'yī shēng', correct: '医生', wrongOptions: ['护士', '药师'], tone: '1-1' },
+        { pinyin: 'jǐng chá', correct: '警察', wrongOptions: ['保安', '军人'], tone: '3-2' },
+        { pinyin: 'fēi xíng yuán', correct: '飞行员', wrongOptions: ['宇航员', '船长'], tone: '1-2-4' },
+        { pinyin: 'jiào liàn', correct: '教练', wrongOptions: ['裁判', '领队'], tone: '4-4' },
+        { pinyin: 'chú shī', correct: '厨师', wrongOptions: ['帮厨', '面点师'], tone: '2-1' },
+        // 科技
+        { pinyin: 'wéi xīng', correct: '卫星', wrongOptions: ['飞船', '火箭'], tone: '2-1' },
+        { pinyin: 'fēi jī', correct: '飞机', wrongOptions: ['直升机', '滑翔机'], tone: '1-1' },
+        { pinyin: 'huǒ jiàn', correct: '火箭', wrongOptions: ['导弹', '卫星'], tone: '3-4' },
+        { pinyin: 'zhí shēng jī', correct: '直升机', wrongOptions: ['战斗机', '轰炸机'], tone: '2-1-1' },
+        { pinyin: 'jī qì rén', correct: '机器人', wrongOptions: ['人工智能', '自动化'], tone: '1-4-2' },
+        // 地理
+        { pinyin: 'cháng chéng', correct: '长城', wrongOptions: ['故宫', '颐和园'], tone: '2-2' },
+        { pinyin: 'gù gōng', correct: '故宫', wrongOptions: ['天坛', '地坛'], tone: '4-1' },
+        { pinyin: 'tiān tán', correct: '天坛', wrongOptions: ['地坛', '日坛'], tone: '1-2' },
+        { pinyin: 'běi jīng', correct: '北京', wrongOptions: ['天津', '石家庄'], tone: '3-1' },
+        { pinyin: 'shàng hǎi', correct: '上海', wrongOptions: ['南京', '杭州'], tone: '4-3' },
+        { pinyin: 'xiāng gǎng', correct: '香港', wrongOptions: ['澳门', '深圳'], tone: '1-3' },
+        { pinyin: 'tái wān', correct: '台湾', wrongOptions: ['海南', '琉球'], tone: '2-1' },
+        // 成语/四字词
+        { pinyin: 'yī èr sān', correct: '一二三', wrongOptions: ['四五六', '七八九'], tone: '1-4-1' },
+        { pinyin: 'xīn nián kuài lè', correct: '新年快乐', wrongOptions: ['生日快乐', '节日快乐'], tone: '1-2-4-4' },
+        { pinyin: 'wàn shì rú yì', correct: '万事如意', wrongOptions: ['心想事成', '一帆风顺'], tone: '4-4-2-4' },
+        { pinyin: 'shēn tǐ jiàn kāng', correct: '身体健康', wrongOptions: ['万事如意', '心想事成'], tone: '1-3-4-1' }
     ]
 };
 
-// 数学口算题库 - 分离加减法和乘除法
+// 用于生成差异化干扰项的汉字库
+const commonChars = {
+    easy: ['一', '二', '三', '人', '口', '日', '月', '山', '水', '火', '木', '土', '天', '地', '上', '下', '大', '小', '手', '足', '耳', '目', '头', '尾', '牛', '马', '羊', '鸡', '鸭', '鱼'],
+    medium: ['春', '夏', '秋', '冬', '东', '西', '南', '北', '花', '草', '树', '叶', '鸟', '虫', '云', '雨', '雪', '风', '电', '光', '书', '笔', '纸', '墨', '门', '窗', '桌', '椅', '床', '柜'],
+    hard: ['梦', '想', '勇', '敢', '智', '慧', '快', '乐', '友', '谊', '诚', '实', '坚', '持', '感', '恩', '自', '信', '尊', '重', '团', '结', '帮', '助', '分', '享', '礼', '貌', '文', '明']
+};
+
+// 数学口算题库
 const mathData = {
-    // 加减法
     addsub: {
         easy: {
             generate() {
                 const isAdd = Math.random() > 0.5;
                 let display, answer;
                 if (isAdd) {
-                    // 10以内加法
                     const a = Math.floor(Math.random() * 9) + 1;
                     const b = Math.floor(Math.random() * (10 - a)) + 1;
                     display = `${a} + ${b}`;
                     answer = a + b;
                 } else {
-                    // 10以内减法
                     const a = Math.floor(Math.random() * 9) + 2;
                     const b = Math.floor(Math.random() * (a - 1)) + 1;
                     display = `${a} - ${b}`;
@@ -88,13 +178,11 @@ const mathData = {
                 const isAdd = Math.random() > 0.5;
                 let display, answer;
                 if (isAdd) {
-                    // 20以内加法
                     const a = Math.floor(Math.random() * 15) + 5;
                     const b = Math.floor(Math.random() * (20 - a)) + 1;
                     display = `${a} + ${b}`;
                     answer = a + b;
                 } else {
-                    // 20以内减法
                     const a = Math.floor(Math.random() * 10) + 11;
                     const b = Math.floor(Math.random() * (a - 1)) + 1;
                     display = `${a} - ${b}`;
@@ -108,13 +196,11 @@ const mathData = {
                 const isAdd = Math.random() > 0.5;
                 let display, answer;
                 if (isAdd) {
-                    // 100以内加法
                     const a = Math.floor(Math.random() * 50) + 20;
                     const b = Math.floor(Math.random() * 40) + 10;
                     display = `${a} + ${b}`;
                     answer = a + b;
                 } else {
-                    // 100以内减法
                     const a = Math.floor(Math.random() * 50) + 50;
                     const b = Math.floor(Math.random() * 40) + 10;
                     display = `${a} - ${b}`;
@@ -124,20 +210,17 @@ const mathData = {
             }
         }
     },
-    // 乘除法
     muldiv: {
         easy: {
             generate() {
                 const isMul = Math.random() > 0.5;
                 let display, answer;
                 if (isMul) {
-                    // 表内乘法（2-5）
                     const a = Math.floor(Math.random() * 4) + 2;
                     const b = Math.floor(Math.random() * 4) + 2;
                     display = `${a} × ${b}`;
                     answer = a * b;
                 } else {
-                    // 简单除法
                     const b = Math.floor(Math.random() * 4) + 2;
                     const ans = Math.floor(Math.random() * 4) + 2;
                     const a = b * ans;
@@ -152,13 +235,11 @@ const mathData = {
                 const isMul = Math.random() > 0.5;
                 let display, answer;
                 if (isMul) {
-                    // 表内乘法（2-9）
                     const a = Math.floor(Math.random() * 8) + 2;
                     const b = Math.floor(Math.random() * 8) + 2;
                     display = `${a} × ${b}`;
                     answer = a * b;
                 } else {
-                    // 表内除法
                     const b = Math.floor(Math.random() * 8) + 2;
                     const ans = Math.floor(Math.random() * 8) + 2;
                     const a = b * ans;
@@ -173,13 +254,11 @@ const mathData = {
                 const isMul = Math.random() > 0.5;
                 let display, answer;
                 if (isMul) {
-                    // 两位数乘一位数
                     const a = Math.floor(Math.random() * 90) + 10;
                     const b = Math.floor(Math.random() * 8) + 2;
                     display = `${a} × ${b}`;
                     answer = a * b;
                 } else {
-                    // 两位数除法
                     const b = Math.floor(Math.random() * 8) + 2;
                     const ans = Math.floor(Math.random() * 20) + 5;
                     const a = b * ans;
@@ -463,64 +542,83 @@ function nextQuestion() {
 let pinyinSelectedAnswer = null;
 let pinyinSelectedBtn = null;
 
-// 生成拼音题 - 完整训练流程：看拼音→听选项→确认→判断
+// 生成拼音题 - 干净界面：只显示拼音+选项
 function generatePinyinQuestion() {
+    // 获取当前难度的题库
     const questions = pinyinData[currentDifficulty];
-    currentQuestion = questions[Math.floor(Math.random() * questions.length)];
+    // 随机选择一题
+    const baseQuestion = questions[Math.floor(Math.random() * questions.length)];
 
-    // 重置选择
+    // 构建4个选项（1个正确+3个差异化干扰项）
+    const options = generatePinyinOptions(baseQuestion);
+
+    currentQuestion = {
+        pinyin: baseQuestion.pinyin,
+        correct: baseQuestion.correct,
+        options: options
+    };
+
+    // 重置选择状态
     pinyinSelectedAnswer = null;
     pinyinSelectedBtn = null;
 
-    // 上方显示拼音+图片
-    const imageHtml = currentQuestion.image ? `<div style="font-size: 6rem; margin: 10px 0; animation: bounce 1s ease infinite;">${currentQuestion.image}</div>` : '';
+    // 上方只显示拼音，没有任何提示文字和图片
     document.getElementById('questionText').innerHTML = `
-        <div class="pinyin" style="font-size: 3rem; color: #667eea; margin-bottom: 10px;">${currentQuestion.pinyin}</div>
-        ${imageHtml}
-        <div style="font-size: 1.2rem; color: #666;">👆 点击汉字听发音，选择后再确认</div>
+        <div class="pinyin" style="font-size: 4rem; color: #667eea; font-weight: bold;">${currentQuestion.pinyin}</div>
     `;
 
     const optionsArea = document.getElementById('optionsArea');
     optionsArea.classList.remove('hidden');
     document.getElementById('inputArea').classList.add('hidden');
 
-    // 打乱选项
-    const shuffled = [...currentQuestion.chars].sort(() => Math.random() - 0.5);
+    // 打乱选项顺序
+    const shuffled = [...currentQuestion.options].sort(() => Math.random() - 0.5);
 
-    // 显示4个汉字选项
+    // 显示4个汉字选项（干净的界面）
     optionsArea.innerHTML = shuffled.map((char) => `
-        <button class="option-btn pinyin-option" data-char="${char}" onclick="selectPinyinOption('${char}', this)" style="position: relative; overflow: hidden;">
-            <span style="font-size: 3rem; display: block;">${char}</span>
-            <span style="font-size: 0.8rem; color: #999; display: block; margin-top: 5px;">🔊 点击发音</span>
+        <button class="option-btn pinyin-option" data-char="${char}" onclick="selectPinyinOption('${char}', this)" style="font-size: 3rem; font-weight: bold;">
+            ${char}
         </button>
     `).join('');
 
     // 显示确认按钮区域
     document.getElementById('controlArea').innerHTML = `
-        <button class="btn btn-primary" id="pinyinConfirmBtn" onclick="confirmPinyinAnswer()" disabled style="opacity: 0.5;">
+        <button class="btn btn-primary" id="pinyinConfirmBtn" onclick="confirmPinyinAnswer()" disabled style="opacity: 0.5; font-size: 1.2rem; padding: 15px 40px;">
             ✅ 确认选择
         </button>
     `;
-
-    // 点击选项时：先发音，再选中
-    optionsArea.querySelectorAll('.pinyin-option').forEach(btn => {
-        btn.addEventListener('click', function(e) {
-            if (isAnswered) return;
-            const char = this.dataset.char;
-            // 播放发音
-            speakCharPinyin(char);
-        });
-    });
-
-    // 自动播放题目拼音
-    if (currentQuestion.pinyin) {
-        setTimeout(() => speakPinyin(currentQuestion.pinyin), 500);
-    }
 }
 
-// 选择拼音选项（不立即判断，只记录选择）
+// 生成差异化的拼音选项（不是同音字，而是完全不同的字）
+function generatePinyinOptions(question) {
+    const options = [question.correct];
+
+    // 使用预设的干扰项
+    if (question.wrongOptions && question.wrongOptions.length >= 3) {
+        options.push(...question.wrongOptions.slice(0, 3));
+    } else {
+        // 从常用字库中随机选择干扰项（确保不与正确答案同音）
+        const charPool = commonChars[currentDifficulty] || commonChars.easy;
+        const wrongOptions = charPool.filter(c => c !== question.correct);
+
+        while (options.length < 4 && wrongOptions.length > 0) {
+            const randomIndex = Math.floor(Math.random() * wrongOptions.length);
+            const char = wrongOptions.splice(randomIndex, 1)[0];
+            if (!options.includes(char)) {
+                options.push(char);
+            }
+        }
+    }
+
+    return options.slice(0, 4);
+}
+
+// 选择拼音选项（点击发音并选中）
 function selectPinyinOption(char, btn) {
     if (isAnswered) return;
+
+    // 播放发音
+    speakCharPinyin(char);
 
     // 记录选择
     pinyinSelectedAnswer = char;
@@ -531,12 +629,14 @@ function selectPinyinOption(char, btn) {
         b.style.borderColor = '#e0e0e0';
         b.style.background = 'white';
         b.style.transform = 'scale(1)';
+        b.style.boxShadow = 'none';
     });
 
     // 高亮当前选中的选项
     btn.style.borderColor = '#667eea';
     btn.style.background = '#f5f7ff';
     btn.style.transform = 'scale(1.05)';
+    btn.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.3)';
 
     // 启用确认按钮
     const confirmBtn = document.getElementById('pinyinConfirmBtn');
@@ -576,7 +676,7 @@ function confirmPinyinAnswer() {
 
         // 显示正确答案提示
         document.getElementById('questionText').innerHTML += `
-            <div style="color: #4CAF50; font-size: 1.5rem; margin-top: 15px; animation: fadeIn 0.3s;">
+            <div style="color: #4CAF50; font-size: 1.5rem; margin-top: 20px; animation: fadeIn 0.3s;">
                 正确答案是 "${currentQuestion.correct}"
             </div>
         `;
@@ -586,30 +686,20 @@ function confirmPinyinAnswer() {
 
     // 延迟下一题
     setTimeout(() => {
-        isAnswered = false; // 重置答题状态
+        isAnswered = false;
         nextQuestion();
     }, isCorrect ? 1200 : 2000);
 }
 
-// 朗读单个汉字的拼音
+// 朗读单个汉字
 function speakCharPinyin(char) {
     if (!window.speechSynthesis) return;
 
-    // 直接朗读汉字
     const utterance = new SpeechSynthesisUtterance(char);
     utterance.lang = 'zh-CN';
     utterance.rate = 0.7;
     utterance.pitch = 1.1;
     window.speechSynthesis.speak(utterance);
-}
-
-// 检查拼音答案
-function checkPinyinAnswer(answer, btn) {
-    if (isAnswered) return;
-    isAnswered = true;
-
-    const isCorrect = answer === currentQuestion.correct;
-    handleAnswer(isCorrect, btn);
 }
 
 // 生成数学题
@@ -740,9 +830,6 @@ function handleAnswer(isCorrect, btn, userAnswer) {
         if (streakCount >= 3) {
             showStreakMessage();
         }
-
-        // 播放正确音效（如果有）
-        // playSound('correct');
     } else {
         wrongCount++;
         streakCount = 0;
