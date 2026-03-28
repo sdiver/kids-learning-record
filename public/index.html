@@ -713,7 +713,7 @@
     <a href="/reading.html" style="position:fixed;top:20px;right:250px;background:linear-gradient(135deg, #4ECDC4 0%, #44a08d 100%);padding:12px 24px;border-radius:25px;text-decoration:none;color:white;font-weight:600;box-shadow:0 4px 15px rgba(78,205,196,0.4);z-index:100;transition:all 0.3s;display:flex;align-items:center;gap:8px;" onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform='translateY(0)'">📖 阅读</a>
 
     <!-- 后台管理 - 左下角 -->
-    <a href="/admin" style="position:fixed;bottom:30px;left:30px;background:rgba(255,255,255,0.9);backdrop-filter:blur(10px);padding:12px 20px;border-radius:30px;text-decoration:none;color:#667eea;font-weight:600;box-shadow:0 4px 15px rgba(0,0,0,0.1);z-index:100;transition:all 0.3s;display:flex;align-items:center;gap:8px;font-size:0.9rem;border:2px solid rgba(102,126,234,0.2);" onmouseover="this.style.transform='scale(1.05)';this.style.borderColor='rgba(102,126,234,0.5)'" onmouseout="this.style.transform='scale(1)';this.style.borderColor='rgba(102,126,234,0.2)'">🔧 后台管理</a>
+    <a href="/manage" style="position:fixed;bottom:30px;left:30px;background:rgba(255,255,255,0.9);backdrop-filter:blur(10px);padding:12px 20px;border-radius:30px;text-decoration:none;color:#667eea;font-weight:600;box-shadow:0 4px 15px rgba(0,0,0,0.1);z-index:100;transition:all 0.3s;display:flex;align-items:center;gap:8px;font-size:0.9rem;border:2px solid rgba(102,126,234,0.2);" onmouseover="this.style.transform='scale(1.05)';this.style.borderColor='rgba(102,126,234,0.5)'" onmouseout="this.style.transform='scale(1)';this.style.borderColor='rgba(102,126,234,0.2)'">🔧 后台管理</a>
 
     <script>
         // 基础路径检测 - 根据当前URL自动计算
@@ -805,7 +805,7 @@
                 card.addEventListener('click', function() {
                     const kidId = this.dataset.kid;
                     if (kidId === 'add') {
-                        window.location.href = '/admin';
+                        window.location.href = BASE_PATH + '/manage';
                         return;
                     }
                     selectKid(parseInt(kidId));
@@ -1034,7 +1034,7 @@
             `;
 
             document.querySelector('.kid-card').addEventListener('click', () => {
-                window.location.href = '/admin';
+                window.location.href = BASE_PATH + '/manage';
             });
         }
 
