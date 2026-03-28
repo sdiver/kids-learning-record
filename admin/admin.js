@@ -1,8 +1,8 @@
 // API 基础URL - 根据当前路径自动检测
-// 找到 /admin 的位置，取其前面的部分作为 BASE_PATH
-// 例：/portal-home/app/parenting/admin/ -> /portal-home/app/parenting
-// 例：/admin/ -> ''
-const adminPos = window.location.pathname.indexOf('/admin');
+// 找到 /manage 的位置，取其前面的部分作为 BASE_PATH
+// 例：/portal-home/app/parenting/manage/ -> /portal-home/app/parenting
+// 例：/manage/ -> ''
+const adminPos = window.location.pathname.indexOf('/manage');
 const BASE_PATH = adminPos > 0 ? window.location.pathname.slice(0, adminPos) : '';
 const API_BASE = BASE_PATH + '/api';
 
