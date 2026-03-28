@@ -808,9 +808,7 @@ function serveHtmlWithFixedPaths(res, htmlPath, basePath) {
       // 将 src="/xxx" 替换为 src="./xxx"
       html = html.replace(/href="\/([^"]+)"/g, 'href="./$1"');
       html = html.replace(/src="\/([^"]+)"/g, 'src="./$1"');
-      // 修复 admin.js 的相对路径 - 从 "admin.js" 改为 "./admin/admin.js"
-      // 这样可以确保在代理路径下正确加载 admin.js
-      html = html.replace(/src="admin\.js"/g, 'src="./admin/admin.js"');
+
     }
     res.setHeader('Content-Type', 'text/html');
     res.send(html);
@@ -820,18 +818,18 @@ function serveHtmlWithFixedPaths(res, htmlPath, basePath) {
   }
 }
 
-// 处理 admin 路径重定向问题 - 确保代理路径下访问 /admin 不重定向到根路径的 /admin/
+// 处理 admin 路径 - 无尾斜杠时重定向，确保 admin.js 相对路径正确解析
 app.get('/admin', (req, res) => {
-    res.sendFile(path.join(__dirname, 'admin', 'index.html'));
+    res.redirect('/admin/');
 });
 app.get('/admin/', (req, res) => {
     res.sendFile(path.join(__dirname, 'admin', 'index.html'));
 });
 
-// 为代理路径添加同样的处理（匹配 /admin 和 /admin/ 两种路径）
+// 为代理路径添加同样的处理
 commonProxyPaths.forEach(proxyPath => {
     app.get(proxyPath + '/admin', (req, res) => {
-        serveHtmlWithFixedPaths(res, path.join(__dirname, 'admin', 'index.html'), proxyPath);
+        res.redirect(proxyPath + '/admin/');
     });
     app.get(proxyPath + '/admin/', (req, res) => {
         serveHtmlWithFixedPaths(res, path.join(__dirname, 'admin', 'index.html'), proxyPath);
