@@ -3,12 +3,61 @@ const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
-// 中间件
-app.use(cors());
+// 安全中间件
+app.use(helmet({
+    contentSecurityPolicy: false, // 允许内联脚本（当前应用需要）
+    crossOriginEmbedderPolicy: false
+}));
+
+// 限流中间件
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15分钟
+    max: 100, // 限制100次请求
+    message: { success: false, message: '请求过于频繁，请稍后再试' }
+});
+app.use('/api/', apiLimiter);
+
+// 认证中间件
+function authenticateToken(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+    if (!token) {
+        return res.status(401).json({ success: false, message: '未提供认证令牌' });
+    }
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) {
+            return res.status(403).json({ success: false, message: '令牌无效或已过期' });
+        }
+        req.user = user;
+        next();
+    });
+}
+
+// CORS配置 - 只允许特定来源
+const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['http://localhost:3000', 'http://localhost:8080'];
+app.use(cors({
+    origin: function(origin, callback) {
+        // 允许没有origin的请求（如Postman测试）
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('不允许的来源'));
+        }
+    },
+    credentials: true
+}));
 app.use(express.json());
 
 // 支持代理路径和直接访问两种方式
@@ -136,6 +185,45 @@ db.serialize(() => {
         FOREIGN KEY (kid_id) REFERENCES kids(id) ON DELETE CASCADE
     )`);
 
+    // 用户表（家长账户）
+    db.run(`CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        role TEXT DEFAULT 'parent' CHECK(role IN ('parent', 'admin')),
+        is_active INTEGER DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        last_login DATETIME
+    )`);
+
+    // 用户-儿童关联表（家长可以看到哪些孩子的数据）
+    db.run(`CREATE TABLE IF NOT EXISTS user_kids (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        kid_id INTEGER NOT NULL,
+        relationship TEXT DEFAULT 'parent',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (kid_id) REFERENCES kids(id) ON DELETE CASCADE,
+        UNIQUE(user_id, kid_id)
+    )`);
+
+    // 审计日志表
+    db.run(`CREATE TABLE IF NOT EXISTS audit_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        action TEXT NOT NULL,
+        table_name TEXT,
+        record_id INTEGER,
+        old_value TEXT,
+        new_value TEXT,
+        ip_address TEXT,
+        user_agent TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    )`);
+
     // 插入默认科目
     const defaultSubjects = [
         ['语文', '📚', '#FF6B6B', 1],
@@ -171,6 +259,120 @@ db.serialize(() => {
 // 数据库连接测试
 apiRouter.get('/health', (req, res) => {
     res.json({ status: 'OK', message: '数据库连接正常' });
+});
+
+// ==================== 认证 API ====================
+
+// 用户注册
+apiRouter.post('/auth/register', async (req, res) => {
+    const { username, email, password } = req.body;
+
+    if (!username || !email || !password) {
+        return res.status(400).json({ success: false, message: '用户名、邮箱和密码不能为空' });
+    }
+
+    if (password.length < 6) {
+        return res.status(400).json({ success: false, message: '密码长度至少6位' });
+    }
+
+    try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        db.run(
+            'INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)',
+            [username, email, hashedPassword],
+            function(err) {
+                if (err) {
+                    if (err.message.includes('UNIQUE constraint failed')) {
+                        return res.status(400).json({ success: false, message: '用户名或邮箱已存在' });
+                    }
+                    return res.status(500).json({ success: false, message: err.message });
+                }
+
+                const token = jwt.sign(
+                    { userId: this.lastID, username, role: 'parent' },
+                    JWT_SECRET,
+                    { expiresIn: '7d' }
+                );
+
+                res.json({
+                    success: true,
+                    data: {
+                        token,
+                        user: { id: this.lastID, username, email, role: 'parent' }
+                    }
+                });
+            }
+        );
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// 用户登录
+apiRouter.post('/auth/login', (req, res) => {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+        return res.status(400).json({ success: false, message: '用户名和密码不能为空' });
+    }
+
+    db.get(
+        'SELECT * FROM users WHERE username = ? AND is_active = 1',
+        [username],
+        async (err, user) => {
+            if (err) return res.status(500).json({ success: false, message: err.message });
+
+            if (!user) {
+                return res.status(401).json({ success: false, message: '用户名或密码错误' });
+            }
+
+            try {
+                const match = await bcrypt.compare(password, user.password_hash);
+
+                if (!match) {
+                    return res.status(401).json({ success: false, message: '用户名或密码错误' });
+                }
+
+                // 更新最后登录时间
+                db.run('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [user.id]);
+
+                const token = jwt.sign(
+                    { userId: user.id, username: user.username, role: user.role },
+                    JWT_SECRET,
+                    { expiresIn: '7d' }
+                );
+
+                res.json({
+                    success: true,
+                    data: {
+                        token,
+                        user: {
+                            id: user.id,
+                            username: user.username,
+                            email: user.email,
+                            role: user.role
+                        }
+                    }
+                });
+            } catch (err) {
+                res.status(500).json({ success: false, message: err.message });
+            }
+        }
+    );
+});
+
+// 获取当前用户信息
+apiRouter.get('/auth/me', authenticateToken, (req, res) => {
+    db.get(
+        'SELECT id, username, email, role, created_at FROM users WHERE id = ?',
+        [req.user.userId],
+        (err, user) => {
+            if (err) return res.status(500).json({ success: false, message: err.message });
+            if (!user) return res.status(404).json({ success: false, message: '用户不存在' });
+            res.json({ success: true, data: user });
+        }
+    );
 });
 
 // ==================== 小朋友管理 API ====================

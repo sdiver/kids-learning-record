@@ -11,12 +11,24 @@ echo "🚀 开始部署 Parenting..."
 
 # 检查是否有本地冲突
 echo "📥 拉取最新代码..."
-if ! git pull 2>/dev/null; then
-    echo "⚠️  检测到本地有修改冲突，尝试自动解决..."
-    git stash
-    git pull
-    git stash pop || echo "⚠️  恢复本地修改时有冲突，使用远程版本"
-fi
+# 设置 Git 缓冲区和重试机制以处理 SSL 错误
+export GIT_HTTP_MAX_REQUEST_BUFFER=100M
+
+# 尝试拉取，最多重试3次
+for i in 1 2 3; do
+    if git pull; then
+        echo "✅ 代码拉取成功"
+        break
+    else
+        echo "⚠️ 第 $i 次拉取失败..."
+        if [ $i -eq 3 ]; then
+            echo "❌ 多次拉取失败，请检查网络或手动执行 git pull"
+            exit 1
+        fi
+        echo "⏳ 3秒后重试..."
+        sleep 3
+    fi
+done
 
 # 停止并删除旧容器
 echo "🛑 停止旧容器..."
