@@ -857,89 +857,27 @@ async function generateAIArticle() {
     }
 }
 
-// 调用AI生成文章（使用kimi-code API，内容更自由灵活）
+// 调用后端AI接口生成文章（使用 Claude API，在服务器端安全调用）
 async function generateArticleWithAI(targetChar, theme, length) {
-    // API配置 - 可以从后端获取或使用默认配置
-    const API_CONFIG = {
-        endpoint: localStorage.getItem('kimi_api_endpoint') || 'https://api.moonshot.cn/v1/chat/completions',
-        key: localStorage.getItem('kimi_api_key') || '',
-        model: localStorage.getItem('kimi_model') || 'moonshot-v1-8k'
-    };
+    const response = await fetch(`${API_BASE}/generate-article`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetChar, theme, length })
+    });
 
-    const lengthMap = { 'short': '50字左右', 'medium': '100字左右', 'long': '200字左右' };
-    const targetLength = lengthMap[length] || '100字左右';
+    const data = await response.json();
 
-    const themePrompts = {
-        '动物': '以动物为主角的温馨小故事',
-        '自然': '描写大自然美景的散文',
-        '家庭': '关于家庭生活的温馨故事',
-        '学校': '发生在校园里的有趣故事',
-        '童话': '充满想象力的童话故事',
-        '科幻': '面向儿童的科幻小故事'
-    };
-
-    const prompt = `请为6岁小朋友创作一篇${themePrompts[theme] || '儿童故事'}。
-
-要求：
-1. 文章长度${targetLength}
-2. 必须多次出现汉字"${targetChar}"，让小朋友能练习这个字
-3. 内容要生动有趣，适合6岁儿童阅读
-4. 语言简单易懂，句子不要太长
-5. 要有教育意义或趣味性
-6. 直接返回文章标题和正文，格式：标题：XXX\n正文：XXX`;
-
-    try {
-        // 如果有API密钥，尝试调用API
-        if (API_CONFIG.key) {
-            const response = await fetch(API_CONFIG.endpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${API_CONFIG.key}`
-                },
-                body: JSON.stringify({
-                    model: API_CONFIG.model,
-                    messages: [
-                        { role: 'system', content: '你是一位擅长创作儿童文学的作家，专门为6岁左右的小朋友创作简单、有趣、易读的故事。' },
-                        { role: 'user', content: prompt }
-                    ],
-                    temperature: 0.8,
-                    max_tokens: 800
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error(`API请求失败: ${response.status}`);
-            }
-
-            const data = await response.json();
-            const generatedText = data.choices?.[0]?.message?.content || '';
-
-            // 解析返回的内容
-            let title = `${targetChar}的故事`;
-            let content = generatedText;
-
-            // 尝试提取标题和正文
-            const titleMatch = generatedText.match(/[标题：]+\s*([^\n]+)/);
-            const contentMatch = generatedText.match(/[正文：]+\s*([\s\S]+)/);
-
-            if (titleMatch) title = titleMatch[1].trim();
-            if (contentMatch) content = contentMatch[1].trim();
-
-            // 确保包含目标字多次
-            const charCount = (content.match(new RegExp(targetChar, 'g')) || []).length;
-            if (charCount < 3) {
-                content += `\n\n小朋友们，今天我们学习了"${targetChar}"这个字，要记住它的写法哦！`;
-            }
-
-            return { title, content, targetChar };
+    if (!response.ok || !data.success) {
+        // 服务器未配置 AI 密钥时给出友好提示，然后回退到模板
+        if (response.status === 503) {
+            console.info('AI服务未配置，使用本地模板生成');
+        } else {
+            console.warn('AI生成失败:', data.message);
         }
-    } catch (error) {
-        console.warn('AI API调用失败，使用备用方案:', error);
+        throw new Error(data.message || 'AI生成失败');
     }
 
-    // 备用方案：使用更丰富的模板生成
-    return generateEnhancedFallbackArticle(targetChar, theme, length);
+    return data.data;
 }
 
 // 增强版备用文章生成（更丰富的内容）
@@ -1175,7 +1113,7 @@ function displayGeneratedArticle(article, targetChar) {
 
 // 去朗读生成的文章
 function goToReadArticle() {
-    window.location.href = '/reading.html?generated=true';
+    window.location.href = BASE_PATH + '/reading.html?generated=true';
 }
 
 // 汉字图形化数据 - 包含象形、emoji、记忆法

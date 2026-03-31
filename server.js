@@ -303,6 +303,110 @@ apiRouter.delete('/articles/custom/:id', (req, res) => {
     });
 });
 
+// ==================== AI 文章生成 API ====================
+
+apiRouter.post('/generate-article', async (req, res) => {
+    const { targetChar, theme, length } = req.body;
+
+    if (!targetChar || typeof targetChar !== 'string' || targetChar.length !== 1) {
+        return res.status(400).json({ success: false, message: '请提供单个目标汉字' });
+    }
+
+    const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+    if (!ANTHROPIC_API_KEY) {
+        return res.status(503).json({ success: false, message: 'AI服务未配置，请在服务器设置 ANTHROPIC_API_KEY 环境变量' });
+    }
+
+    const lengthMap = { short: '50字左右', medium: '100字左右', long: '150字左右' };
+    const targetLength = lengthMap[length] || '100字左右';
+
+    const themePrompts = {
+        '动物': '以动物为主角的温馨小故事',
+        '自然': '描写大自然美景的小散文',
+        '家庭': '关于家庭生活的温馨故事',
+        '学校': '发生在校园里的有趣故事',
+        '童话': '充满想象力的童话故事',
+        '科幻': '面向儿童的科幻小故事'
+    };
+
+    const prompt = `请为6岁小朋友创作一篇${themePrompts[theme] || '儿童故事'}。
+
+要求：
+1. 文章长度${targetLength}
+2. 必须多次出现汉字"${targetChar}"，让小朋友能练习这个字
+3. 内容生动有趣，适合6岁儿童阅读
+4. 语言简单易懂，句子不要太长
+5. 只返回标题和正文，格式严格为：
+标题：XXX
+正文：XXX`;
+
+    try {
+        const https = require('https');
+        const requestBody = JSON.stringify({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 600,
+            messages: [{ role: 'user', content: prompt }]
+        });
+
+        const result = await new Promise((resolve, reject) => {
+            const options = {
+                hostname: 'api.anthropic.com',
+                path: '/v1/messages',
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': ANTHROPIC_API_KEY,
+                    'anthropic-version': '2023-06-01',
+                    'Content-Length': Buffer.byteLength(requestBody)
+                }
+            };
+
+            const request = https.request(options, (resp) => {
+                let data = '';
+                resp.on('data', chunk => { data += chunk; });
+                resp.on('end', () => {
+                    try { resolve({ status: resp.statusCode, body: JSON.parse(data) }); }
+                    catch (e) { reject(new Error('解析AI响应失败')); }
+                });
+            });
+
+            request.on('error', reject);
+            request.setTimeout(30000, () => { request.destroy(); reject(new Error('AI请求超时')); });
+            request.write(requestBody);
+            request.end();
+        });
+
+        if (result.status !== 200) {
+            throw new Error(`AI API返回错误: ${result.status} - ${JSON.stringify(result.body)}`);
+        }
+
+        const generatedText = result.body.content?.[0]?.text || '';
+
+        // 解析标题和正文
+        let title = `"${targetChar}"的故事`;
+        let content = generatedText;
+
+        const titleMatch = generatedText.match(/标题[：:]\s*([^\n]+)/);
+        const contentMatch = generatedText.match(/正文[：:]\s*([\s\S]+)/);
+
+        if (titleMatch) title = titleMatch[1].trim();
+        if (contentMatch) content = contentMatch[1].trim();
+
+        // 确保目标字出现足够次数
+        const charCount = (content.match(new RegExp(targetChar, 'g')) || []).length;
+        if (charCount < 2) {
+            content += `\n小朋友，"${targetChar}"这个字要多读多写哦！`;
+        }
+
+        console.log(`✅ AI生成文章成功: "${title}" (目标字"${targetChar}"出现${charCount}次)`);
+        res.json({ success: true, data: { title, content, targetChar } });
+
+    } catch (error) {
+        console.error('❌ AI生成文章失败:', error.message);
+        res.status(500).json({ success: false, message: 'AI生成失败：' + error.message });
+    }
+});
+
 // ==================== 认证 API ====================
 
 // 用户注册

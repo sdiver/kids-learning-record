@@ -293,15 +293,15 @@ function getCommonPinyin(char) {
 }
 
 // 初始化
- document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     initPinyinCache();
-    loadAllArticles();
+    await loadAllArticles(); // 等待文章加载完成，避免 loadGeneratedArticle 竞态覆盖
     initSpeechRecognition();
     initSpeedSlider();
     initAddArticleModal();
     initReadingControls();
 
-    // 检查是否有生成的文章
+    // 检查是否有生成的文章（必须在 loadAllArticles 之后执行）
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('generated') === 'true') {
         loadGeneratedArticle();
@@ -423,16 +423,21 @@ function showSimplePinyinHint(char) {
     });
 }
 
-// 加载生成的文章
+// 加载生成的文章（必须在 loadAllArticles 之后调用）
 function loadGeneratedArticle() {
     const saved = localStorage.getItem('generatedArticle');
     if (!saved) return;
 
     const article = JSON.parse(saved);
 
-    // 添加到文章列表
+    // 用一个不与内置（正整数）和自定义（负整数）冲突的数字ID
+    const GENERATED_ID = -99999;
+
+    // 移除旧的同ID文章（避免重复）
+    allArticles = allArticles.filter(a => a.id !== GENERATED_ID);
+
     const customArticle = {
-        id: 'generated-' + Date.now(),
+        id: GENERATED_ID,
         title: article.title + ' (AI生成)',
         content: article.content,
         level: 'medium',
@@ -440,12 +445,12 @@ function loadGeneratedArticle() {
         isGenerated: true
     };
 
-    // 临时添加到列表
+    // 置顶插入列表
     allArticles.unshift(customArticle);
     initArticleList();
 
-    // 自动选择
-    setTimeout(() => selectArticle(customArticle.id), 100);
+    // 直接选中（已无竞态，无需 setTimeout）
+    selectArticle(GENERATED_ID);
 }
 
 // 加载所有文章（内置 + 自定义）
@@ -816,7 +821,7 @@ function processRecognizedTextAdvanced(alternatives) {
     }
 }
 
-// 贪婪前向匹配：带单步前瞻纠偏，始终向前推进，不因单字失败而中断
+// 贪婪前向匹配：带多步前瞻纠偏，始终向前推进，不因单字失败而中断
 function tryMatchText(text) {
     const startIndex = currentIndex;
     let ri = 0; // 识别文本游标
@@ -837,18 +842,33 @@ function tryMatchText(text) {
             currentIndex++;
             ri++;
         } else {
-            // 前瞻1：识别文本多了一个噪音字（跳过识别字，期待字不变）
-            const nextRecog = text[ri + 1];
-            if (nextRecog && checkMatchAdvanced(expectedChar, nextRecog).isMatch) {
-                ri++; // 跳过噪音字，下次循环用 nextRecog 重新匹配
+            // 前瞻1：识别文本多了噪音字（跳过最多3个识别字，期待字不变）
+            let noiseSkip = 0;
+            for (let skip = 1; skip <= 3 && ri + skip < text.length; skip++) {
+                if (checkMatchAdvanced(expectedChar, text[ri + skip]).isMatch) {
+                    noiseSkip = skip;
+                    break;
+                }
+            }
+            if (noiseSkip > 0) {
+                ri += noiseSkip; // 跳过噪音字，下次循环重新匹配
                 continue;
             }
 
-            // 前瞻2：孩子漏读了一个字（跳过期待字，识别字不变）
-            const nextExpEl = charElements[currentIndex + 1];
-            if (nextExpEl && checkMatchAdvanced(nextExpEl.dataset.char, recognizedChar).isMatch) {
-                markWrong(currentIndex, '—'); // 漏读
-                currentIndex++;
+            // 前瞻2：孩子漏读了字（跳过最多2个期待字，识别字不变）
+            let missedCount = 0;
+            for (let skip = 1; skip <= 2 && currentIndex + skip < charElements.length; skip++) {
+                const nextExpEl = charElements[currentIndex + skip];
+                if (nextExpEl && checkMatchAdvanced(nextExpEl.dataset.char, recognizedChar).isMatch) {
+                    missedCount = skip;
+                    break;
+                }
+            }
+            if (missedCount > 0) {
+                for (let s = 0; s < missedCount; s++) {
+                    markWrong(currentIndex, '—'); // 漏读
+                    currentIndex++;
+                }
                 continue; // 下次循环用同一个识别字匹配下一个期待字
             }
 
@@ -928,32 +948,67 @@ function checkMatchAdvanced(expected, recognized) {
     return { isMatch: false, confident: true };
 }
 
-// 模糊拼音匹配
+// 模糊拼音匹配（儿童常见混淆）
 function isSimilarPinyin(p1, p2) {
-    // 前后鼻音容错
-    const nMapping = { 'en': 'eng', 'eng': 'en', 'in': 'ing', 'ing': 'in', 'un': 'ong', 'ong': 'un' };
+    if (p1 === p2) return true;
 
-    // 平翘舌容错
-    const sMapping = { 'z': 'zh', 'zh': 'z', 'c': 'ch', 'ch': 'c', 's': 'sh', 'sh': 's' };
+    // 标准化：去掉声调（调用前已处理，这里再次保证）
+    const a = p1.toLowerCase();
+    const b = p2.toLowerCase();
+    if (a === b) return true;
 
-    // n/l 容错
-    const nlMapping = { 'n': 'l', 'l': 'n' };
-
-    // 检查是否是常见的拼音混淆
-    for (const [k, v] of Object.entries(nMapping)) {
-        if ((p1.includes(k) && p2.includes(v)) || (p1.includes(v) && p2.includes(k))) {
-            const r1 = p1.replace(k, '').replace(v, '');
-            const r2 = p2.replace(k, '').replace(v, '');
-            if (r1 === r2) return true;
-        }
+    // 前后鼻音容错 (in/ing, en/eng, an/ang, uan/uang)
+    const nasalPairs = [
+        ['in', 'ing'], ['en', 'eng'], ['an', 'ang'], ['un', 'ong'],
+        ['uan', 'uang'], ['ian', 'iang']
+    ];
+    for (const [x, y] of nasalPairs) {
+        const swap = (s, from, to) => s.endsWith(from) ? s.slice(0, -from.length) + to : null;
+        const a2 = swap(a, x, y) || swap(a, y, x);
+        if (a2 && a2 === b) return true;
     }
 
-    // 检查首字母
-    if (p1[0] !== p2[0]) {
-        const c1 = p1[0], c2 = p2[0];
-        if ((sMapping[c1] === c2) || (nlMapping[c1] === c2)) {
-            return p1.slice(1) === p2.slice(1);
-        }
+    // 平翘舌容错 (z/zh, c/ch, s/sh)
+    const shPairs = [['z', 'zh'], ['c', 'ch'], ['s', 'sh']];
+    for (const [flat, curl] of shPairs) {
+        const normalize = s => s.startsWith(curl) ? flat + s.slice(curl.length)
+                              : s.startsWith(flat) && !s.startsWith(curl) ? curl + s.slice(flat.length) : null;
+        const a2 = normalize(a);
+        if (a2 && a2 === b) return true;
+        const b2 = normalize(b);
+        if (b2 && b2 === a) return true;
+    }
+
+    // n/l 容错
+    if (a[0] !== b[0] && ((a[0] === 'n' && b[0] === 'l') || (a[0] === 'l' && b[0] === 'n'))) {
+        if (a.slice(1) === b.slice(1)) return true;
+    }
+
+    // j/zh, q/ch, x/sh 容错（儿童常见混淆）
+    const jqxPairs = [['j', 'zh'], ['q', 'ch'], ['x', 'sh']];
+    for (const [jqx, zhcsh] of jqxPairs) {
+        if (a.startsWith(jqx) && b.startsWith(zhcsh) && a.slice(jqx.length) === b.slice(zhcsh.length)) return true;
+        if (b.startsWith(jqx) && a.startsWith(zhcsh) && b.slice(jqx.length) === a.slice(zhcsh.length)) return true;
+    }
+
+    // f/h 容错（南方口音）
+    if (a[0] !== b[0] && ((a[0] === 'f' && b[0] === 'h') || (a[0] === 'h' && b[0] === 'f'))) {
+        if (a.slice(1) === b.slice(1)) return true;
+    }
+
+    // r/l 容错
+    if (a[0] !== b[0] && ((a[0] === 'r' && b[0] === 'l') || (a[0] === 'l' && b[0] === 'r'))) {
+        if (a.slice(1) === b.slice(1)) return true;
+    }
+
+    // 韵母简化容错：üe/ue/e, ia/a, ua/a
+    const vowelPairs = [['ue', 'e'], ['ia', 'a'], ['ua', 'a'], ['uo', 'o']];
+    for (const [full, short] of vowelPairs) {
+        const toShort = s => s.includes(full) ? s.replace(full, short) : null;
+        const a2 = toShort(a);
+        if (a2 && a2 === b) return true;
+        const b2 = toShort(b);
+        if (b2 && b2 === a) return true;
     }
 
     return false;
