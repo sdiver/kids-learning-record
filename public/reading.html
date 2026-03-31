@@ -247,6 +247,13 @@
             }
         }
 
+        /* 实时识别中的临时高亮（未提交） */
+        .char.tentative {
+            background: #E3F2FD;
+            color: #1565c0;
+            transform: scale(1.08);
+        }
+
         /* 标点符号 */
         .punct {
             color: #999;
@@ -707,8 +714,8 @@
                 <div id="ocrStatus" style="display: none; padding: 10px; background: #E3F2FD; border-radius: 8px; margin-bottom: 10px; color: #1565c0; font-size: 0.9rem;">
                     🔍 正在识别文字...
                 </div>
-                <textarea id="newArticleContent" placeholder="请粘贴或输入文章内容...建议100字以内" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 1rem; font-family: inherit; min-height: 150px; resize: vertical;"></textarea>
-                <small style="color: #888; display: block; margin-top: 5px;">已输入 <span id="charCount">0</span> 字</small>
+                <textarea id="newArticleContent" placeholder="请粘贴或输入文章内容...（最多2000字）" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 1rem; font-family: inherit; min-height: 150px; resize: vertical;"></textarea>
+                <small style="color: #888; display: block; margin-top: 5px;">已输入 <span id="charCount">0</span> 字（上限 2000 字）</small>
             </div>
 
             <div style="display: flex; gap: 15px;">

@@ -33,6 +33,9 @@ let readingConfig = {
 // 当前字的重试计数
 let currentCharRetries = 0;
 
+// 自我纠正窗口：记录最近一次标为错误的字，3秒内可被下一次识别撤销
+let lastWrongInfo = null; // { index, char, time }
+
 // 预置文章库
 const builtinArticles = [
     { id: 1, title: '咏鹅', author: '骆宾王', content: '鹅鹅鹅，曲项向天歌。白毛浮绿水，红掌拨清波。', level: 'easy' },
@@ -669,6 +672,7 @@ function startReading() {
     errorWords = [];
     recognitionBuffer = '';
     currentCharRetries = 0;
+    lastWrongInfo = null;
 
     // 更新UI
     document.getElementById('startBtn').classList.add('hidden');
@@ -725,11 +729,15 @@ function resetReading() {
     errorWords = [];
     recognitionBuffer = '';
     currentCharRetries = 0;
+    lastWrongInfo = null;
 
     // 停止识别
     if (recognition) {
         recognition.stop();
     }
+
+    // 清除临时高亮
+    clearInterimHighlight();
 
     // 重置UI
     document.querySelectorAll('.char').forEach(char => {
@@ -749,7 +757,7 @@ function resetReading() {
     updateProgress();
 }
 
-// 处理语音识别结果 - 改进版（儿童容错）
+// 处理语音识别结果
 function handleSpeechResult(event) {
     const results = event.results;
     const now = Date.now();
@@ -759,65 +767,109 @@ function handleSpeechResult(event) {
         const transcript = result[0].transcript;
 
         // 收集所有候选结果
-        let alternatives = [transcript];
+        const alternatives = [transcript];
         for (let j = 1; j < result.length; j++) {
-            if (result[j].transcript) {
-                alternatives.push(result[j].transcript);
-            }
+            if (result[j].transcript) alternatives.push(result[j].transcript);
         }
 
         if (result.isFinal) {
-            console.log('语音识别结果:', transcript);
-
-            // 累积识别结果
+            // 终态结果：清除临时高亮，提交匹配
+            clearInterimHighlight();
             recognitionBuffer += transcript;
-
-            // 限制缓冲区大小
             if (recognitionBuffer.length > 50) {
                 recognitionBuffer = recognitionBuffer.slice(-50);
             }
-
-            // 处理识别到的文本
             processRecognizedTextAdvanced(alternatives);
-
             lastRecognitionTime = now;
         } else {
-            // 临时结果显示
-            showInterimResult(transcript);
+            // 临时结果：实时高亮预览，不提交
+            showInterimProgress(transcript);
         }
     }
 }
 
-// 显示临时结果（视觉反馈）
-function showInterimResult(text) {
-    const statusText = document.getElementById('statusText');
-    if (statusText && isReading) {
-        statusText.textContent = '🎤 识别中: ' + text.slice(-15);
-    }
+// 清除临时高亮
+function clearInterimHighlight() {
+    document.querySelectorAll('.char.tentative').forEach(el => el.classList.remove('tentative'));
 }
 
-// 处理识别结果：遍历所有候选文本，取第一个有进展的
+// 临时结果实时预览：向前尝试匹配，给出浅蓝高亮（不提交对/错）
+function showInterimProgress(text) {
+    clearInterimHighlight();
+    if (!isReading || !text) return;
+
+    const punct = /[，。！？、；：""''（）【】「」『』〈〉《》…—～·\s\r\n"'`!?,.:;()\[\]{}\-]/g;
+    const cleanText = text.replace(punct, '');
+
+    let tempIndex = currentIndex;
+    let ri = 0;
+    while (ri < cleanText.length && tempIndex < charElements.length) {
+        const expected = charElements[tempIndex]?.dataset?.char;
+        if (!expected) break;
+        if (checkMatchAdvanced(expected, cleanText[ri]).isMatch) {
+            charElements[tempIndex].classList.add('tentative');
+            tempIndex++;
+        }
+        ri++;
+    }
+
+    const statusText = document.getElementById('statusText');
+    if (statusText) statusText.textContent = '🎤 识别中: ' + text.slice(-12);
+}
+
+// 处理识别结果：先检查自我纠正，再正常匹配
 function processRecognizedTextAdvanced(alternatives) {
     if (!currentArticle || currentIndex >= charElements.length) return;
 
     const punct = /[，。！？、；：""''（）【】「」『』〈〉《》…—～·\s\r\n"'`!?,.:;()\[\]{}\-]/g;
 
+    // ① 自我纠正检测：3秒内，若本次识别的第一个字与上次标错的字匹配 → 撤销错误
+    if (lastWrongInfo && Date.now() - lastWrongInfo.time < 3000) {
+        const { index: wIdx, char: wChar } = lastWrongInfo;
+        for (const text of alternatives) {
+            const cleanText = text.replace(punct, '');
+            if (!cleanText) continue;
+            if (checkMatchAdvanced(wChar, cleanText[0]).isMatch) {
+                // 撤销错误标记
+                const el = charElements[wIdx];
+                el.classList.remove('wrong');
+                el.classList.add('correct');
+                wrongCount = Math.max(0, wrongCount - 1);
+                correctCount++;
+                // 从本次结果列表里移掉（不影响错字本，小朋友确实卡过这个字）
+                errorWords = errorWords.filter(e => e.expected !== wChar || e.recognized === '—');
+                lastWrongInfo = null;
+                currentIndex = Math.max(currentIndex, wIdx + 1);
+                updateStats();
+                highlightCurrent();
+                updateProgress();
+                updateStatus('listening', '✅ 纠正得好！请继续...');
+                // 处理该识别结果剩余的字
+                const rest = cleanText.slice(1);
+                if (rest) tryMatchText(rest);
+                return;
+            }
+        }
+    }
+
+    // ② 正常匹配
     for (const text of alternatives) {
         const cleanText = text.replace(punct, '');
         if (!cleanText.length) continue;
-
-        const advanced = tryMatchText(cleanText);
-        if (advanced) {
+        if (tryMatchText(cleanText)) {
             currentCharRetries = 0;
             return;
         }
     }
 
-    // 所有候选都没有进展，计重试
+    // ③ 没有进展：计重试次数
     currentCharRetries++;
-    if (currentCharRetries >= readingConfig.maxRetries) {
-        updateStatus('error', '🤔 没听清，请点击字看提示或按跳过');
+    if (currentCharRetries >= 5) {
+        // 卡了太久 → 自动跳过，避免卡住
+        skipCurrentChar();
         currentCharRetries = 0;
+    } else if (currentCharRetries >= 3) {
+        updateStatus('error', '🤔 没听清，再读一遍，或点字看提示');
     }
 }
 
@@ -1054,35 +1106,23 @@ function markCorrect(index) {
 // 标记错误
 function markWrong(index, recognized) {
     const char = charElements[index];
-    if (!char) {
-        console.log('markWrong: 字符元素不存在, index:', index);
-        return;
-    }
+    if (!char) return;
 
     const expected = char.dataset.char;
-    if (!expected) {
-        console.log('markWrong: 预期字符不存在');
-        return;
-    }
-
-    console.log('>>> 标记错误:', expected, '识别为:', recognized);
+    if (!expected) return;
 
     // 视觉反馈
     char.classList.remove('current');
     char.classList.add('wrong');
     wrongCount++;
 
-    // 记录错误
-    errorWords.push({
-        expected: expected,
-        recognized: recognized || '未识别',
-        pinyin: localPinyinDict[expected] || ''
-    });
+    // 记录错误（漏读'—'不进自我纠正窗口）
+    errorWords.push({ expected, recognized: recognized || '未识别', pinyin: localPinyinDict[expected] || '' });
+    if (recognized !== '—') {
+        lastWrongInfo = { index, char: expected, time: Date.now() };
+    }
 
-    // 添加到错字本
-    console.log('>>> 调用 addToMistakeBook:', expected, recognized);
     addToMistakeBook(expected, recognized || '未识别');
-
     updateStats();
 }
 
@@ -1527,8 +1567,8 @@ async function addCustomArticle() {
         return;
     }
 
-    if (content.length > 500) {
-        alert('文章内容太长了，请控制在500字以内');
+    if (content.length > 2000) {
+        alert('文章内容太长了，请控制在2000字以内');
         return;
     }
 

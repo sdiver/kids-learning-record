@@ -281,8 +281,8 @@ apiRouter.post('/articles/custom', (req, res) => {
     if (!title || !content) {
         return res.status(400).json({ success: false, message: '标题和内容不能为空' });
     }
-    if (content.length > 500) {
-        return res.status(400).json({ success: false, message: '文章内容不能超过500字' });
+    if (content.length > 2000) {
+        return res.status(400).json({ success: false, message: '文章内容不能超过2000字' });
     }
     db.run(
         'INSERT INTO custom_articles (title, author, content, level) VALUES (?, ?, ?, ?)',
@@ -304,6 +304,45 @@ apiRouter.delete('/articles/custom/:id', (req, res) => {
 });
 
 // ==================== AI 文章生成 API ====================
+// 支持多个免费 AI provider，按优先级自动选用：
+//   1. Groq       → 设置 GROQ_API_KEY       （免费注册 console.groq.com，无需信用卡）
+//   2. Gemini     → 设置 GEMINI_API_KEY      （免费注册 aistudio.google.com，无需信用卡）
+//   3. Claude     → 设置 ANTHROPIC_API_KEY   （付费，备用）
+//   均未配置 → 返回 503，前端自动降级为本地模板
+
+// 通用 HTTPS 请求辅助（Node.js 内置，无需安装额外依赖）
+function httpsPost(hostname, path, headers, body) {
+    const https = require('https');
+    const requestBody = JSON.stringify(body);
+    return new Promise((resolve, reject) => {
+        const req = https.request(
+            { hostname, path, method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(requestBody), ...headers } },
+            (resp) => {
+                let data = '';
+                resp.on('data', chunk => { data += chunk; });
+                resp.on('end', () => {
+                    try { resolve({ status: resp.statusCode, body: JSON.parse(data) }); }
+                    catch (e) { reject(new Error('解析响应失败')); }
+                });
+            }
+        );
+        req.on('error', reject);
+        req.setTimeout(30000, () => { req.destroy(); reject(new Error('请求超时')); });
+        req.write(requestBody);
+        req.end();
+    });
+}
+
+// 解析 AI 返回文本 → { title, content }
+function parseArticleText(text, fallbackChar) {
+    let title = `"${fallbackChar}"的故事`;
+    let content = text.trim();
+    const titleMatch = text.match(/标题[：:]\s*([^\n]+)/);
+    const contentMatch = text.match(/正文[：:]\s*([\s\S]+)/);
+    if (titleMatch) title = titleMatch[1].trim();
+    if (contentMatch) content = contentMatch[1].trim();
+    return { title, content };
+}
 
 apiRouter.post('/generate-article', async (req, res) => {
     const { targetChar, theme, length } = req.body;
@@ -312,94 +351,84 @@ apiRouter.post('/generate-article', async (req, res) => {
         return res.status(400).json({ success: false, message: '请提供单个目标汉字' });
     }
 
-    const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-    if (!ANTHROPIC_API_KEY) {
-        return res.status(503).json({ success: false, message: 'AI服务未配置，请在服务器设置 ANTHROPIC_API_KEY 环境变量' });
+    const GROQ_KEY      = process.env.GROQ_API_KEY;
+    const GEMINI_KEY    = process.env.GEMINI_API_KEY;
+    const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
+
+    if (!GROQ_KEY && !GEMINI_KEY && !ANTHROPIC_KEY) {
+        return res.status(503).json({
+            success: false,
+            message: '未配置AI密钥。请设置以下任一环境变量：GROQ_API_KEY（推荐，免费）、GEMINI_API_KEY 或 ANTHROPIC_API_KEY'
+        });
     }
 
     const lengthMap = { short: '50字左右', medium: '100字左右', long: '150字左右' };
-    const targetLength = lengthMap[length] || '100字左右';
+    const themeMap = { '动物': '以动物为主角的温馨小故事', '自然': '描写大自然美景的小散文', '家庭': '关于家庭生活的温馨故事', '学校': '发生在校园里的有趣故事', '童话': '充满想象力的童话故事', '科幻': '面向儿童的科幻小故事' };
 
-    const themePrompts = {
-        '动物': '以动物为主角的温馨小故事',
-        '自然': '描写大自然美景的小散文',
-        '家庭': '关于家庭生活的温馨故事',
-        '学校': '发生在校园里的有趣故事',
-        '童话': '充满想象力的童话故事',
-        '科幻': '面向儿童的科幻小故事'
-    };
-
-    const prompt = `请为6岁小朋友创作一篇${themePrompts[theme] || '儿童故事'}。
-
-要求：
-1. 文章长度${targetLength}
-2. 必须多次出现汉字"${targetChar}"，让小朋友能练习这个字
-3. 内容生动有趣，适合6岁儿童阅读
-4. 语言简单易懂，句子不要太长
-5. 只返回标题和正文，格式严格为：
+    const prompt = `请为6岁小朋友创作一篇${themeMap[theme] || '儿童故事'}。
+要求：1.长度${lengthMap[length] || '100字左右'} 2.必须多次出现汉字"${targetChar}" 3.内容生动有趣 4.语言简单易懂
+只返回标题和正文，格式：
 标题：XXX
 正文：XXX`;
 
+    let generatedText = '';
+
     try {
-        const https = require('https');
-        const requestBody = JSON.stringify({
-            model: 'claude-haiku-4-5-20251001',
-            max_tokens: 600,
-            messages: [{ role: 'user', content: prompt }]
-        });
-
-        const result = await new Promise((resolve, reject) => {
-            const options = {
-                hostname: 'api.anthropic.com',
-                path: '/v1/messages',
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-api-key': ANTHROPIC_API_KEY,
-                    'anthropic-version': '2023-06-01',
-                    'Content-Length': Buffer.byteLength(requestBody)
-                }
-            };
-
-            const request = https.request(options, (resp) => {
-                let data = '';
-                resp.on('data', chunk => { data += chunk; });
-                resp.on('end', () => {
-                    try { resolve({ status: resp.statusCode, body: JSON.parse(data) }); }
-                    catch (e) { reject(new Error('解析AI响应失败')); }
-                });
-            });
-
-            request.on('error', reject);
-            request.setTimeout(30000, () => { request.destroy(); reject(new Error('AI请求超时')); });
-            request.write(requestBody);
-            request.end();
-        });
-
-        if (result.status !== 200) {
-            throw new Error(`AI API返回错误: ${result.status} - ${JSON.stringify(result.body)}`);
+        // ── Provider 1: Groq（最推荐，免费注册 console.groq.com） ──
+        if (GROQ_KEY) {
+            const result = await httpsPost(
+                'api.groq.com', '/openai/v1/chat/completions',
+                { 'Authorization': `Bearer ${GROQ_KEY}` },
+                { model: 'qwen/qwen3-32b', messages: [{ role: 'user', content: prompt }], max_tokens: 400 }
+            );
+            if (result.status === 200) {
+                generatedText = result.body.choices?.[0]?.message?.content || '';
+                console.log('✅ AI生成（Groq）成功');
+            } else {
+                throw new Error(`Groq ${result.status}: ${JSON.stringify(result.body)}`);
+            }
         }
 
-        const generatedText = result.body.content?.[0]?.text || '';
+        // ── Provider 2: Google Gemini（免费注册 aistudio.google.com） ──
+        else if (GEMINI_KEY) {
+            const result = await httpsPost(
+                'generativelanguage.googleapis.com',
+                `/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
+                {},
+                { contents: [{ parts: [{ text: prompt }] }] }
+            );
+            if (result.status === 200) {
+                generatedText = result.body.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                console.log('✅ AI生成（Gemini）成功');
+            } else {
+                throw new Error(`Gemini ${result.status}: ${JSON.stringify(result.body)}`);
+            }
+        }
 
-        // 解析标题和正文
-        let title = `"${targetChar}"的故事`;
-        let content = generatedText;
+        // ── Provider 3: Anthropic Claude（付费，备用） ──
+        else if (ANTHROPIC_KEY) {
+            const result = await httpsPost(
+                'api.anthropic.com', '/v1/messages',
+                { 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
+                { model: 'claude-haiku-4-5-20251001', max_tokens: 400, messages: [{ role: 'user', content: prompt }] }
+            );
+            if (result.status === 200) {
+                generatedText = result.body.content?.[0]?.text || '';
+                console.log('✅ AI生成（Claude）成功');
+            } else {
+                throw new Error(`Claude ${result.status}: ${JSON.stringify(result.body)}`);
+            }
+        }
 
-        const titleMatch = generatedText.match(/标题[：:]\s*([^\n]+)/);
-        const contentMatch = generatedText.match(/正文[：:]\s*([\s\S]+)/);
+        if (!generatedText) throw new Error('AI返回内容为空');
 
-        if (titleMatch) title = titleMatch[1].trim();
-        if (contentMatch) content = contentMatch[1].trim();
-
-        // 确保目标字出现足够次数
+        const { title, content } = parseArticleText(generatedText, targetChar);
         const charCount = (content.match(new RegExp(targetChar, 'g')) || []).length;
-        if (charCount < 2) {
-            content += `\n小朋友，"${targetChar}"这个字要多读多写哦！`;
-        }
+        const finalContent = charCount < 2
+            ? content + `\n小朋友，"${targetChar}"这个字要多读多写哦！`
+            : content;
 
-        console.log(`✅ AI生成文章成功: "${title}" (目标字"${targetChar}"出现${charCount}次)`);
-        res.json({ success: true, data: { title, content, targetChar } });
+        res.json({ success: true, data: { title, content: finalContent, targetChar } });
 
     } catch (error) {
         console.error('❌ AI生成文章失败:', error.message);
