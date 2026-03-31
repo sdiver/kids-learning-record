@@ -351,14 +351,16 @@ apiRouter.post('/generate-article', async (req, res) => {
         return res.status(400).json({ success: false, message: '请提供单个目标汉字' });
     }
 
-    const GROQ_KEY      = process.env.GROQ_API_KEY;
-    const GEMINI_KEY    = process.env.GEMINI_API_KEY;
-    const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
+    const ZHIPU_KEY     = process.env.ZHIPU_API_KEY;      // 智谱GLM，永久免费，中文最佳
+    const GROQ_KEY      = process.env.GROQ_API_KEY;       // Groq，免费，中文好
+    const GEMINI_KEY    = process.env.GEMINI_API_KEY;     // Google Gemini，免费
+    const DEEPSEEK_KEY  = process.env.DEEPSEEK_API_KEY;   // DeepSeek，注册送5M token
+    const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;  // Claude，付费备用
 
-    if (!GROQ_KEY && !GEMINI_KEY && !ANTHROPIC_KEY) {
+    if (!ZHIPU_KEY && !GROQ_KEY && !GEMINI_KEY && !DEEPSEEK_KEY && !ANTHROPIC_KEY) {
         return res.status(503).json({
             success: false,
-            message: '未配置AI密钥。请设置以下任一环境变量：GROQ_API_KEY（推荐，免费）、GEMINI_API_KEY 或 ANTHROPIC_API_KEY'
+            message: '未配置AI密钥。推荐免费选项：\n① ZHIPU_API_KEY（智谱GLM，永久免费，open.bigmodel.cn）\n② GROQ_API_KEY（Groq，console.groq.com）\n③ GEMINI_API_KEY（Google，aistudio.google.com）'
         });
     }
 
@@ -371,15 +373,36 @@ apiRouter.post('/generate-article', async (req, res) => {
 标题：XXX
 正文：XXX`;
 
+    // OpenAI 兼容格式（GLM / Groq / DeepSeek 通用）
+    const openaiMessages = [
+        { role: 'system', content: '你是一位专门为儿童创作故事的作家，语言简单温馨，适合6岁小朋友。' },
+        { role: 'user', content: prompt }
+    ];
+
     let generatedText = '';
 
     try {
-        // ── Provider 1: Groq（最推荐，免费注册 console.groq.com） ──
-        if (GROQ_KEY) {
+        // ── Provider 1: 智谱GLM（永久免费，中文效果最好，open.bigmodel.cn 注册） ──
+        if (ZHIPU_KEY) {
+            const result = await httpsPost(
+                'open.bigmodel.cn', '/api/paas/v4/chat/completions',
+                { 'Authorization': `Bearer ${ZHIPU_KEY}` },
+                { model: 'glm-4-flash', messages: openaiMessages, max_tokens: 400 }
+            );
+            if (result.status === 200) {
+                generatedText = result.body.choices?.[0]?.message?.content || '';
+                console.log('✅ AI生成（智谱GLM）成功');
+            } else {
+                throw new Error(`GLM ${result.status}: ${JSON.stringify(result.body)}`);
+            }
+        }
+
+        // ── Provider 2: Groq（免费注册 console.groq.com，用 Qwen3 模型） ──
+        else if (GROQ_KEY) {
             const result = await httpsPost(
                 'api.groq.com', '/openai/v1/chat/completions',
                 { 'Authorization': `Bearer ${GROQ_KEY}` },
-                { model: 'qwen/qwen3-32b', messages: [{ role: 'user', content: prompt }], max_tokens: 400 }
+                { model: 'qwen/qwen3-32b', messages: openaiMessages, max_tokens: 400 }
             );
             if (result.status === 200) {
                 generatedText = result.body.choices?.[0]?.message?.content || '';
@@ -389,7 +412,7 @@ apiRouter.post('/generate-article', async (req, res) => {
             }
         }
 
-        // ── Provider 2: Google Gemini（免费注册 aistudio.google.com） ──
+        // ── Provider 3: Google Gemini（免费注册 aistudio.google.com） ──
         else if (GEMINI_KEY) {
             const result = await httpsPost(
                 'generativelanguage.googleapis.com',
@@ -405,7 +428,22 @@ apiRouter.post('/generate-article', async (req, res) => {
             }
         }
 
-        // ── Provider 3: Anthropic Claude（付费，备用） ──
+        // ── Provider 4: DeepSeek（注册送5M token，platform.deepseek.com） ──
+        else if (DEEPSEEK_KEY) {
+            const result = await httpsPost(
+                'api.deepseek.com', '/chat/completions',
+                { 'Authorization': `Bearer ${DEEPSEEK_KEY}` },
+                { model: 'deepseek-chat', messages: openaiMessages, max_tokens: 400, stream: false }
+            );
+            if (result.status === 200) {
+                generatedText = result.body.choices?.[0]?.message?.content || '';
+                console.log('✅ AI生成（DeepSeek）成功');
+            } else {
+                throw new Error(`DeepSeek ${result.status}: ${JSON.stringify(result.body)}`);
+            }
+        }
+
+        // ── Provider 5: Anthropic Claude（付费，备用） ──
         else if (ANTHROPIC_KEY) {
             const result = await httpsPost(
                 'api.anthropic.com', '/v1/messages',
