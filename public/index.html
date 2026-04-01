@@ -475,6 +475,159 @@
             font-size: 4rem;
             margin-bottom: 15px;
         }
+
+        /* 顶部导航按钮 */
+        .top-nav {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            display: flex;
+            gap: 8px;
+            z-index: 100;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            max-width: calc(100vw - 30px);
+        }
+
+        .top-nav a {
+            padding: 10px 18px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .top-nav a:hover {
+            transform: translateY(-2px);
+        }
+
+        .top-nav .btn-mistakes {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            color: white;
+        }
+
+        .top-nav .btn-practice {
+            background: linear-gradient(135deg, #FFD93D 0%, #ff9a3c 100%);
+            color: #333;
+        }
+
+        .top-nav .btn-reading {
+            background: linear-gradient(135deg, #4ECDC4 0%, #44a08d 100%);
+            color: white;
+        }
+
+        .bottom-nav-admin {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(255,255,255,0.9);
+            backdrop-filter: blur(10px);
+            padding: 10px 18px;
+            border-radius: 30px;
+            text-decoration: none;
+            color: #667eea;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            z-index: 100;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            border: 2px solid rgba(102,126,234,0.2);
+        }
+
+        .bottom-nav-admin:hover {
+            transform: scale(1.05);
+            border-color: rgba(102,126,234,0.5);
+        }
+
+        /* 响应式 */
+        @media (max-width: 600px) {
+            body {
+                padding: 12px;
+                padding-top: 80px;
+            }
+
+            .header h1 {
+                font-size: 1.6rem;
+            }
+
+            .header p {
+                font-size: 0.9rem;
+            }
+
+            .top-nav {
+                top: 10px;
+                right: 10px;
+                gap: 6px;
+            }
+
+            .top-nav a {
+                padding: 8px 12px;
+                font-size: 0.8rem;
+            }
+
+            .kid-card {
+                padding: 15px 20px;
+            }
+
+            .kid-avatar {
+                width: 60px;
+                height: 60px;
+                font-size: 2rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+            }
+
+            .stat-card {
+                padding: 15px;
+            }
+
+            .stat-value {
+                font-size: 1.5rem;
+            }
+
+            .achievement-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .subject-select {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            .modal-content {
+                padding: 20px;
+            }
+
+            .btn-group {
+                flex-direction: column;
+            }
+
+            .fab {
+                width: 56px;
+                height: 56px;
+                font-size: 1.6rem;
+                bottom: 20px;
+                right: 15px;
+            }
+
+            .bottom-nav-admin {
+                bottom: 15px;
+                left: 15px;
+                padding: 8px 14px;
+                font-size: 0.8rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -707,13 +860,15 @@
         </div>
     </div>
 
-    <!-- 顶部按钮 -->
-    <a href="/mistakes.html" style="position:fixed;top:20px;right:20px;background:linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);padding:12px 24px;border-radius:25px;text-decoration:none;color:white;font-weight:600;box-shadow:0 4px 15px rgba(255,107,107,0.4);z-index:100;transition:all 0.3s;display:flex;align-items:center;gap:8px;" onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform='translateY(0)'">📝 错字本</a>
-    <a href="/practice.html" style="position:fixed;top:20px;right:140px;background:linear-gradient(135deg, #FFD93D 0%, #ff9a3c 100%);padding:12px 24px;border-radius:25px;text-decoration:none;color:#333;font-weight:600;box-shadow:0 4px 15px rgba(255,217,61,0.4);z-index:100;transition:all 0.3s;display:flex;align-items:center;gap:8px;" onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform='translateY(0)'">🎯 练习</a>
-    <a href="/reading.html" style="position:fixed;top:20px;right:250px;background:linear-gradient(135deg, #4ECDC4 0%, #44a08d 100%);padding:12px 24px;border-radius:25px;text-decoration:none;color:white;font-weight:600;box-shadow:0 4px 15px rgba(78,205,196,0.4);z-index:100;transition:all 0.3s;display:flex;align-items:center;gap:8px;" onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform='translateY(0)'">📖 阅读</a>
+    <!-- 顶部导航按钮 -->
+    <div class="top-nav" id="topNav">
+        <a href="/reading.html" class="btn-reading" id="readingNavBtn">📖 阅读</a>
+        <a href="/practice.html" class="btn-practice" id="practiceNavBtn">🎯 练习</a>
+        <a href="/mistakes.html" class="btn-mistakes" id="mistakesNavBtn">📝 错字本</a>
+    </div>
 
     <!-- 后台管理 - 左下角 -->
-    <a href="/hub" style="position:fixed;bottom:30px;left:30px;background:rgba(255,255,255,0.9);backdrop-filter:blur(10px);padding:12px 20px;border-radius:30px;text-decoration:none;color:#667eea;font-weight:600;box-shadow:0 4px 15px rgba(0,0,0,0.1);z-index:100;transition:all 0.3s;display:flex;align-items:center;gap:8px;font-size:0.9rem;border:2px solid rgba(102,126,234,0.2);" onmouseover="this.style.transform='scale(1.05)';this.style.borderColor='rgba(102,126,234,0.5)'" onmouseout="this.style.transform='scale(1)';this.style.borderColor='rgba(102,126,234,0.2)'">🔧 后台管理</a>
+    <a href="/hub" class="bottom-nav-admin" id="adminNavBtn">🔧 后台管理</a>
 
     <script>
         // 基础路径检测 - 根据当前URL自动计算

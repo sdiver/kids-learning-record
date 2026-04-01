@@ -557,6 +557,82 @@
         .hidden {
             display: none !important;
         }
+
+        /* 移动端 / iPad 响应式 */
+        @media (max-width: 768px) {
+            body {
+                padding: 12px;
+                padding-top: 70px;
+            }
+
+            .header h1 {
+                font-size: 1.8rem;
+            }
+
+            .back-link {
+                top: 12px;
+                left: 12px;
+                padding: 8px 14px;
+                font-size: 0.85rem;
+            }
+
+            /* 错字本按钮移到 back-link 右边 */
+            #mistakesLink {
+                top: 12px !important;
+                right: 12px !important;
+                padding: 8px 14px !important;
+                font-size: 0.85rem !important;
+                border-radius: 16px !important;
+            }
+
+            .reading-area {
+                padding: 20px 15px;
+            }
+
+            .reading-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+
+            .reading-stats {
+                gap: 12px;
+            }
+
+            .article-frame {
+                padding: 16px;
+                max-height: 320px;
+            }
+
+            .article-content {
+                font-size: 1.8rem;
+                line-height: 2.4;
+            }
+
+            .control-row {
+                flex-wrap: wrap;
+            }
+
+            .btn {
+                padding: 12px 20px;
+                font-size: 0.9rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .article-content {
+                font-size: 1.6rem;
+                line-height: 2.2;
+            }
+
+            .reading-stats {
+                gap: 8px;
+            }
+
+            .stat-number {
+                font-size: 1.2rem;
+            }
+        }
     </style>
 </head>
 <body>

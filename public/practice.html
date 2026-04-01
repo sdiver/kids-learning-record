@@ -419,6 +419,47 @@
                 opacity: 1;
             }
         }
+
+        /* 移动端 / iPad 响应式 */
+        @media (max-width: 768px) {
+            body {
+                padding: 12px;
+                padding-top: 70px;
+            }
+
+            .header h1 {
+                font-size: 1.8rem;
+            }
+
+            .back-link {
+                top: 12px;
+                left: 12px;
+                padding: 8px 14px;
+                font-size: 0.85rem;
+                z-index: 100;
+            }
+
+            .practice-types {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+            }
+
+            .answer-options {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+
+            .pinyin-keyboard {
+                grid-template-columns: repeat(4, 1fr);
+                gap: 6px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .pinyin-keyboard {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
     </style>
 </head>
 <body>

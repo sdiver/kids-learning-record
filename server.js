@@ -1074,19 +1074,18 @@ function serveHtmlWithFixedPaths(res, htmlPath, basePath) {
   }
 }
 
-// 处理 manage 路径 - 无尾斜杠时重定向，确保 admin.js 相对路径正确解析
-// 使用相对路径 'manage/' 而非绝对路径，避免反向代理剥前缀后跳到错误地址
+// 处理 /hub 路径 - 有无尾斜杠都直接提供页面，避免通过 Synology Portal 时重定向失败
 app.get('/hub', (req, res) => {
-    res.redirect('hub/');
+    serveHtmlWithFixedPaths(res, path.join(__dirname, 'admin', 'index.html'), '');
 });
 app.get('/hub/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'admin', 'index.html'));
+    serveHtmlWithFixedPaths(res, path.join(__dirname, 'admin', 'index.html'), '');
 });
 
 // 为代理路径添加同样的处理
 commonProxyPaths.forEach(proxyPath => {
     app.get(proxyPath + '/hub', (req, res) => {
-        res.redirect(proxyPath + '/hub/');
+        serveHtmlWithFixedPaths(res, path.join(__dirname, 'admin', 'index.html'), proxyPath);
     });
     app.get(proxyPath + '/hub/', (req, res) => {
         serveHtmlWithFixedPaths(res, path.join(__dirname, 'admin', 'index.html'), proxyPath);
