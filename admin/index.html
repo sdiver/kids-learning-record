@@ -736,6 +736,9 @@
             <div class="nav-item" data-page="points">
                 <span>💎</span> 积分记录
             </div>
+            <div class="nav-item" data-page="ai-settings">
+                <span>🤖</span> AI 设置
+            </div>
             <div class="nav-item" onclick="goToPage('mistakes.html')">
                 <span>📝</span> 错字本
             </div>
@@ -976,6 +979,55 @@
                         <!-- 动态生成 -->
                     </tbody>
                 </table>
+            </div>
+        </div>
+
+        <!-- AI 设置页面 -->
+        <div id="page-ai-settings" class="page hidden">
+            <div class="header">
+                <h2>🤖 AI 文章生成设置</h2>
+            </div>
+
+            <div class="card" style="max-width:700px;">
+                <p style="color:#666;margin-bottom:20px;line-height:1.7;">
+                    配置后数据持久化到数据库，Docker 重启后仍有效。<br>
+                    API Key 输入框留空则保留原有值，填入新值则覆盖。<br>
+                    <strong>推荐免费方案：</strong>智谱GLM（永久免费）或 Groq（每天 1000 次免费）。
+                </p>
+
+                <!-- 激活的 Provider -->
+                <div class="form-group">
+                    <label class="form-label">🎯 激活的 Provider（留空则按优先级自动选）</label>
+                    <select class="form-select" id="ai_active_provider" style="width:100%;">
+                        <option value="">自动（智谱 → Groq → Gemini → DeepSeek → Claude）</option>
+                        <option value="zhipu">智谱 GLM-4-Flash（永久免费，中文最佳）</option>
+                        <option value="groq">Groq + Qwen3（免费，注册 console.groq.com）</option>
+                        <option value="gemini">Google Gemini 2.0 Flash（免费，aistudio.google.com）</option>
+                        <option value="deepseek">DeepSeek（注册送 5M token）</option>
+                        <option value="anthropic">Anthropic Claude（付费备用）</option>
+                    </select>
+                </div>
+
+                <hr style="margin:20px 0;border-color:#eee;">
+
+                <!-- 各 Provider Key 输入 -->
+                <div id="aiKeyFields">
+                    <!-- 动态生成 -->
+                </div>
+
+                <div style="margin-top:25px;display:flex;gap:12px;align-items:center;">
+                    <button class="btn btn-primary" onclick="saveAISettings()">💾 保存配置</button>
+                    <button class="btn btn-secondary" onclick="loadAISettings()">🔄 刷新</button>
+                    <span id="aiSaveStatus" style="color:#4CAF50;font-size:0.9rem;"></span>
+                </div>
+
+                <div style="margin-top:25px;padding:15px;background:#f8f9ff;border-radius:10px;font-size:0.85rem;color:#555;line-height:1.8;">
+                    <strong>获取免费 API Key：</strong><br>
+                    • <strong>智谱GLM</strong>：<a href="https://open.bigmodel.cn" target="_blank">open.bigmodel.cn</a> 注册，glm-4-flash 永久免费<br>
+                    • <strong>Groq</strong>：<a href="https://console.groq.com" target="_blank">console.groq.com</a> 注册，每天 1000 次免费<br>
+                    • <strong>Gemini</strong>：<a href="https://aistudio.google.com" target="_blank">aistudio.google.com</a> 注册，每天 1500 次免费<br>
+                    • <strong>DeepSeek</strong>：<a href="https://platform.deepseek.com" target="_blank">platform.deepseek.com</a> 注册送 500 万 token
+                </div>
             </div>
         </div>
     </div>

@@ -228,6 +228,13 @@ db.serialize(() => {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
 
+    // AI 配置持久化表（存储各 provider 的 API key 及激活的 provider）
+    db.run(`CREATE TABLE IF NOT EXISTS settings (
+        key   TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+
     // 插入默认科目
     const defaultSubjects = [
         ['语文', '📚', '#FF6B6B', 1],
@@ -303,6 +310,64 @@ apiRouter.delete('/articles/custom/:id', (req, res) => {
     });
 });
 
+// ==================== AI 配置管理 API ====================
+
+const AI_KEY_FIELDS = ['zhipu_api_key', 'groq_api_key', 'gemini_api_key', 'deepseek_api_key', 'anthropic_api_key'];
+
+// 从 DB 读取所有 AI 设置（Promise 封装）
+function loadAISettingsFromDB() {
+    return new Promise((resolve) => {
+        db.all("SELECT key, value FROM settings WHERE key IN ('active_provider','zhipu_api_key','groq_api_key','gemini_api_key','deepseek_api_key','anthropic_api_key')", (err, rows) => {
+            const cfg = {};
+            if (!err && rows) rows.forEach(r => { cfg[r.key] = r.value; });
+            resolve(cfg);
+        });
+    });
+}
+
+// GET /api/admin/settings — 返回配置状态（key 打码显示）
+apiRouter.get('/admin/settings', async (req, res) => {
+    const cfg = await loadAISettingsFromDB();
+    const mask = v => v ? v.slice(0, 4) + '****' + v.slice(-4) : '';
+    res.json({
+        success: true,
+        data: {
+            active_provider: cfg.active_provider || '',
+            zhipu_api_key:      mask(cfg.zhipu_api_key),
+            groq_api_key:       mask(cfg.groq_api_key),
+            gemini_api_key:     mask(cfg.gemini_api_key),
+            deepseek_api_key:   mask(cfg.deepseek_api_key),
+            anthropic_api_key:  mask(cfg.anthropic_api_key),
+            // 是否已配置（给前端判断用）
+            zhipu_set:     !!cfg.zhipu_api_key,
+            groq_set:      !!cfg.groq_api_key,
+            gemini_set:    !!cfg.gemini_api_key,
+            deepseek_set:  !!cfg.deepseek_api_key,
+            anthropic_set: !!cfg.anthropic_api_key
+        }
+    });
+});
+
+// POST /api/admin/settings — 保存配置（空字符串 = 不更新该字段）
+apiRouter.post('/admin/settings', (req, res) => {
+    const { active_provider, zhipu_api_key, groq_api_key, gemini_api_key, deepseek_api_key, anthropic_api_key } = req.body;
+    const updates = [];
+    if (active_provider !== undefined) updates.push(['active_provider', active_provider]);
+    const keyMap = { zhipu_api_key, groq_api_key, gemini_api_key, deepseek_api_key, anthropic_api_key };
+    for (const [k, v] of Object.entries(keyMap)) {
+        if (v && v.trim()) updates.push([k, v.trim()]);
+    }
+    if (!updates.length) return res.json({ success: true, message: '无需更新' });
+
+    const stmt = db.prepare("INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)");
+    updates.forEach(([k, v]) => stmt.run([k, v]));
+    stmt.finalize((err) => {
+        if (err) return res.status(500).json({ success: false, message: err.message });
+        console.log('✅ AI配置已保存:', updates.map(([k]) => k).join(', '));
+        res.json({ success: true, message: '配置已保存' });
+    });
+});
+
 // ==================== AI 文章生成 API ====================
 // 支持多个免费 AI provider，按优先级自动选用：
 //   1. Groq       → 设置 GROQ_API_KEY       （免费注册 console.groq.com，无需信用卡）
@@ -351,16 +416,19 @@ apiRouter.post('/generate-article', async (req, res) => {
         return res.status(400).json({ success: false, message: '请提供单个目标汉字' });
     }
 
-    const ZHIPU_KEY     = process.env.ZHIPU_API_KEY;      // 智谱GLM，永久免费，中文最佳
-    const GROQ_KEY      = process.env.GROQ_API_KEY;       // Groq，免费，中文好
-    const GEMINI_KEY    = process.env.GEMINI_API_KEY;     // Google Gemini，免费
-    const DEEPSEEK_KEY  = process.env.DEEPSEEK_API_KEY;   // DeepSeek，注册送5M token
-    const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;  // Claude，付费备用
+    // DB 配置优先，再 fallback 到环境变量
+    const dbCfg = await loadAISettingsFromDB();
+    const ZHIPU_KEY     = dbCfg.zhipu_api_key     || process.env.ZHIPU_API_KEY;
+    const GROQ_KEY      = dbCfg.groq_api_key      || process.env.GROQ_API_KEY;
+    const GEMINI_KEY    = dbCfg.gemini_api_key     || process.env.GEMINI_API_KEY;
+    const DEEPSEEK_KEY  = dbCfg.deepseek_api_key   || process.env.DEEPSEEK_API_KEY;
+    const ANTHROPIC_KEY = dbCfg.anthropic_api_key  || process.env.ANTHROPIC_API_KEY;
+    const activeProvider = dbCfg.active_provider || '';  // 指定 provider 时强制使用
 
     if (!ZHIPU_KEY && !GROQ_KEY && !GEMINI_KEY && !DEEPSEEK_KEY && !ANTHROPIC_KEY) {
         return res.status(503).json({
             success: false,
-            message: '未配置AI密钥。推荐免费选项：\n① ZHIPU_API_KEY（智谱GLM，永久免费，open.bigmodel.cn）\n② GROQ_API_KEY（Groq，console.groq.com）\n③ GEMINI_API_KEY（Google，aistudio.google.com）'
+            message: '未配置AI密钥。请在后台「AI设置」页面配置，或设置环境变量：ZHIPU_API_KEY / GROQ_API_KEY / GEMINI_API_KEY'
         });
     }
 
@@ -373,99 +441,74 @@ apiRouter.post('/generate-article', async (req, res) => {
 标题：XXX
 正文：XXX`;
 
-    // OpenAI 兼容格式（GLM / Groq / DeepSeek 通用）
     const openaiMessages = [
         { role: 'system', content: '你是一位专门为儿童创作故事的作家，语言简单温馨，适合6岁小朋友。' },
         { role: 'user', content: prompt }
     ];
 
+    // provider 选择：activeProvider 指定则强制，否则按优先级
+    const providerOrder = activeProvider
+        ? [activeProvider]
+        : ['zhipu', 'groq', 'gemini', 'deepseek', 'anthropic'];
+
     let generatedText = '';
 
-    try {
-        // ── Provider 1: 智谱GLM（永久免费，中文效果最好，open.bigmodel.cn 注册） ──
-        if (ZHIPU_KEY) {
-            const result = await httpsPost(
-                'open.bigmodel.cn', '/api/paas/v4/chat/completions',
+    // provider 调用表
+    const callers = {
+        zhipu: async () => {
+            if (!ZHIPU_KEY) return null;
+            const r = await httpsPost('open.bigmodel.cn', '/api/paas/v4/chat/completions',
                 { 'Authorization': `Bearer ${ZHIPU_KEY}` },
-                { model: 'glm-4-flash', messages: openaiMessages, max_tokens: 400 }
-            );
-            if (result.status === 200) {
-                generatedText = result.body.choices?.[0]?.message?.content || '';
-                console.log('✅ AI生成（智谱GLM）成功');
-            } else {
-                throw new Error(`GLM ${result.status}: ${JSON.stringify(result.body)}`);
-            }
-        }
-
-        // ── Provider 2: Groq（免费注册 console.groq.com，用 Qwen3 模型） ──
-        else if (GROQ_KEY) {
-            const result = await httpsPost(
-                'api.groq.com', '/openai/v1/chat/completions',
+                { model: 'glm-4-flash', messages: openaiMessages, max_tokens: 400 });
+            if (r.status !== 200) throw new Error(`GLM ${r.status}: ${JSON.stringify(r.body)}`);
+            return r.body.choices?.[0]?.message?.content;
+        },
+        groq: async () => {
+            if (!GROQ_KEY) return null;
+            const r = await httpsPost('api.groq.com', '/openai/v1/chat/completions',
                 { 'Authorization': `Bearer ${GROQ_KEY}` },
-                { model: 'qwen/qwen3-32b', messages: openaiMessages, max_tokens: 400 }
-            );
-            if (result.status === 200) {
-                generatedText = result.body.choices?.[0]?.message?.content || '';
-                console.log('✅ AI生成（Groq）成功');
-            } else {
-                throw new Error(`Groq ${result.status}: ${JSON.stringify(result.body)}`);
-            }
-        }
-
-        // ── Provider 3: Google Gemini（免费注册 aistudio.google.com） ──
-        else if (GEMINI_KEY) {
-            const result = await httpsPost(
-                'generativelanguage.googleapis.com',
-                `/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
-                {},
-                { contents: [{ parts: [{ text: prompt }] }] }
-            );
-            if (result.status === 200) {
-                generatedText = result.body.candidates?.[0]?.content?.parts?.[0]?.text || '';
-                console.log('✅ AI生成（Gemini）成功');
-            } else {
-                throw new Error(`Gemini ${result.status}: ${JSON.stringify(result.body)}`);
-            }
-        }
-
-        // ── Provider 4: DeepSeek（注册送5M token，platform.deepseek.com） ──
-        else if (DEEPSEEK_KEY) {
-            const result = await httpsPost(
-                'api.deepseek.com', '/chat/completions',
+                { model: 'qwen/qwen3-32b', messages: openaiMessages, max_tokens: 400 });
+            if (r.status !== 200) throw new Error(`Groq ${r.status}: ${JSON.stringify(r.body)}`);
+            return r.body.choices?.[0]?.message?.content;
+        },
+        gemini: async () => {
+            if (!GEMINI_KEY) return null;
+            const r = await httpsPost('generativelanguage.googleapis.com',
+                `/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`, {},
+                { contents: [{ parts: [{ text: prompt }] }] });
+            if (r.status !== 200) throw new Error(`Gemini ${r.status}: ${JSON.stringify(r.body)}`);
+            return r.body.candidates?.[0]?.content?.parts?.[0]?.text;
+        },
+        deepseek: async () => {
+            if (!DEEPSEEK_KEY) return null;
+            const r = await httpsPost('api.deepseek.com', '/chat/completions',
                 { 'Authorization': `Bearer ${DEEPSEEK_KEY}` },
-                { model: 'deepseek-chat', messages: openaiMessages, max_tokens: 400, stream: false }
-            );
-            if (result.status === 200) {
-                generatedText = result.body.choices?.[0]?.message?.content || '';
-                console.log('✅ AI生成（DeepSeek）成功');
-            } else {
-                throw new Error(`DeepSeek ${result.status}: ${JSON.stringify(result.body)}`);
-            }
-        }
-
-        // ── Provider 5: Anthropic Claude（付费，备用） ──
-        else if (ANTHROPIC_KEY) {
-            const result = await httpsPost(
-                'api.anthropic.com', '/v1/messages',
+                { model: 'deepseek-chat', messages: openaiMessages, max_tokens: 400, stream: false });
+            if (r.status !== 200) throw new Error(`DeepSeek ${r.status}: ${JSON.stringify(r.body)}`);
+            return r.body.choices?.[0]?.message?.content;
+        },
+        anthropic: async () => {
+            if (!ANTHROPIC_KEY) return null;
+            const r = await httpsPost('api.anthropic.com', '/v1/messages',
                 { 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
-                { model: 'claude-haiku-4-5-20251001', max_tokens: 400, messages: [{ role: 'user', content: prompt }] }
-            );
-            if (result.status === 200) {
-                generatedText = result.body.content?.[0]?.text || '';
-                console.log('✅ AI生成（Claude）成功');
-            } else {
-                throw new Error(`Claude ${result.status}: ${JSON.stringify(result.body)}`);
-            }
+                { model: 'claude-haiku-4-5-20251001', max_tokens: 400, messages: [{ role: 'user', content: prompt }] });
+            if (r.status !== 200) throw new Error(`Claude ${r.status}: ${JSON.stringify(r.body)}`);
+            return r.body.content?.[0]?.text;
+        }
+    };
+
+    try {
+        for (const provider of providerOrder) {
+            if (!callers[provider]) continue;
+            const text = await callers[provider]();
+            if (text) { generatedText = text; console.log(`✅ AI生成（${provider}）成功`); break; }
         }
 
-        if (!generatedText) throw new Error('AI返回内容为空');
+        if (!generatedText) throw new Error('所有AI provider均未返回内容');
 
         const { title, content } = parseArticleText(generatedText, targetChar);
         const charCount = (content.match(new RegExp(targetChar, 'g')) || []).length;
-        const finalContent = charCount < 2
-            ? content + `\n小朋友，"${targetChar}"这个字要多读多写哦！`
-            : content;
-
+        const finalContent = charCount < 2 ? content + `\n小朋友，"${targetChar}"这个字要多读多写哦！` : content;
         res.json({ success: true, data: { title, content: finalContent, targetChar } });
 
     } catch (error) {

@@ -120,6 +120,9 @@ function switchPage(page) {
         case 'points':
             loadPoints();
             break;
+        case 'ai-settings':
+            loadAISettings();
+            break;
     }
 }
 
@@ -942,4 +945,90 @@ function showDayDetail(dateStr) {
     modal.addEventListener('click', (e) => {
         if (e.target === modal) modal.remove();
     });
+}
+
+// ==================== AI 设置 ====================
+
+const AI_PROVIDERS = [
+    { key: 'zhipu_api_key',    label: '智谱 GLM',    hint: '永久免费 · open.bigmodel.cn',    placeholder: '输入智谱 API Key（sk-...）' },
+    { key: 'groq_api_key',     label: 'Groq',         hint: '每天 1000 次免费 · console.groq.com', placeholder: '输入 Groq API Key（gsk_...）' },
+    { key: 'gemini_api_key',   label: 'Google Gemini',hint: '每天 1500 次免费 · aistudio.google.com', placeholder: '输入 Gemini API Key（AIza...）' },
+    { key: 'deepseek_api_key', label: 'DeepSeek',     hint: '注册送 500 万 token · platform.deepseek.com', placeholder: '输入 DeepSeek API Key（sk-...）' },
+    { key: 'anthropic_api_key',label: 'Anthropic Claude', hint: '付费备用', placeholder: '输入 Anthropic API Key（sk-ant-...）' }
+];
+
+async function loadAISettings() {
+    try {
+        const res = await fetch(`${API_BASE}/admin/settings`);
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message);
+
+        const cfg = data.data;
+
+        // 设置激活的 provider
+        const sel = document.getElementById('ai_active_provider');
+        if (sel) sel.value = cfg.active_provider || '';
+
+        // 渲染各 provider 的 key 输入框
+        const container = document.getElementById('aiKeyFields');
+        if (!container) return;
+
+        container.innerHTML = AI_PROVIDERS.map(p => `
+            <div class="form-group" style="margin-bottom:18px;">
+                <label class="form-label" style="display:flex;justify-content:space-between;align-items:center;">
+                    <span>${p.label}</span>
+                    <span style="font-size:0.8rem;color:#888;font-weight:400;">${p.hint}</span>
+                </label>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <input type="password" class="form-input" id="ai_${p.key}"
+                        placeholder="${cfg[p.key.replace('_api_key','_set')] ? '已配置（输入新值可覆盖）' : p.placeholder}"
+                        autocomplete="off" style="flex:1;">
+                    <span style="font-size:1.2rem;" title="${cfg[p.key.replace('_api_key','_set')] ? '已配置' : '未配置'}">
+                        ${cfg[p.key.replace('_api_key','_set')] ? '✅' : '⬜'}
+                    </span>
+                </div>
+            </div>
+        `).join('');
+
+    } catch (e) {
+        showToast('加载AI配置失败: ' + e.message, 'error');
+    }
+}
+
+async function saveAISettings() {
+    const active_provider = document.getElementById('ai_active_provider')?.value || '';
+    const body = { active_provider };
+
+    AI_PROVIDERS.forEach(p => {
+        const val = document.getElementById(`ai_${p.key}`)?.value?.trim();
+        if (val) body[p.key] = val;
+    });
+
+    const statusEl = document.getElementById('aiSaveStatus');
+    if (statusEl) statusEl.textContent = '保存中...';
+
+    try {
+        const res = await fetch(`${API_BASE}/admin/settings`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message);
+
+        showToast('AI配置已保存！', 'success');
+        if (statusEl) statusEl.textContent = '✅ 已保存';
+        setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 3000);
+
+        // 清空输入框并刷新状态
+        AI_PROVIDERS.forEach(p => {
+            const el = document.getElementById(`ai_${p.key}`);
+            if (el) el.value = '';
+        });
+        loadAISettings();
+
+    } catch (e) {
+        showToast('保存失败: ' + e.message, 'error');
+        if (statusEl) statusEl.textContent = '❌ 保存失败';
+    }
 }
