@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学情诊断 - 小朋友学习记录</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Nunito', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container { max-width: 900px; margin: 0 auto; }
+
+        .back-link {
+            position: fixed; top: 20px; left: 20px;
+            background: white; padding: 10px 20px;
+            border-radius: 20px; text-decoration: none;
+            color: #667eea; font-weight: 600;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 100;
+        }
+
+        /* 顶部标题 */
+        .header {
+            text-align: center;
+            margin-bottom: 28px;
+            padding-top: 50px;
+        }
+        .header h1 { color: white; font-size: 2.2rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); margin-bottom: 8px; }
+        .header p { color: rgba(255,255,255,0.9); font-size: 1rem; }
+
+        /* 小朋友选择 */
+        .kid-selector-bar {
+            background: rgba(255,255,255,0.18);
+            border-radius: 16px;
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 22px;
+            flex-wrap: wrap;
+        }
+        .kid-selector-bar label { color: white; font-weight: 700; font-size: 1rem; }
+        .kid-selector-bar select {
+            padding: 10px 18px; border-radius: 20px; border: none;
+            font-size: 1rem; font-family: inherit;
+            background: white; color: #333; cursor: pointer;
+        }
+        .btn-refresh {
+            padding: 10px 20px; border-radius: 20px; border: none;
+            background: white; color: #667eea; font-weight: 700;
+            cursor: pointer; font-family: inherit; font-size: 0.95rem;
+            transition: all 0.2s;
+        }
+        .btn-refresh:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+
+        /* 卡片通用 */
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            margin-bottom: 20px;
+        }
+        .card-title {
+            font-size: 1.15rem; font-weight: 800; color: #333;
+            margin-bottom: 18px; display: flex; align-items: center; gap: 8px;
+        }
+
+        /* 总览横栏 */
+        .overview-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+        .overview-card {
+            background: white; border-radius: 16px;
+            padding: 18px; text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.07);
+        }
+        .overview-icon { font-size: 2rem; margin-bottom: 6px; }
+        .overview-value { font-size: 1.8rem; font-weight: 800; color: #333; }
+        .overview-label { font-size: 0.82rem; color: #888; margin-top: 3px; }
+
+        /* 汉字掌握度圆形 */
+        .mastery-ring-wrap {
+            display: flex;
+            align-items: center;
+            gap: 28px;
+            flex-wrap: wrap;
+        }
+        .ring-container { position: relative; width: 130px; height: 130px; flex-shrink: 0; }
+        .ring-container svg { transform: rotate(-90deg); }
+        .ring-bg { fill: none; stroke: #f0f0f0; stroke-width: 12; }
+        .ring-fill { fill: none; stroke-width: 12; stroke-linecap: round; transition: stroke-dashoffset 1s ease; }
+        .ring-text {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+        .ring-percent { font-size: 1.7rem; font-weight: 800; color: #333; }
+        .ring-sub { font-size: 0.78rem; color: #888; }
+
+        .mistake-breakdown { flex: 1; min-width: 160px; }
+        .breakdown-item {
+            display: flex; align-items: center; gap: 10px;
+            margin-bottom: 10px;
+        }
+        .breakdown-dot {
+            width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0;
+        }
+        .breakdown-label { font-size: 0.9rem; color: #555; flex: 1; }
+        .breakdown-count { font-weight: 700; color: #333; }
+        .breakdown-bar-wrap { flex: 2; background: #f5f5f5; border-radius: 6px; height: 8px; }
+        .breakdown-bar { height: 100%; border-radius: 6px; transition: width 0.8s ease; }
+
+        /* 各科掌握度 */
+        .subject-row {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 14px; flex-wrap: wrap;
+        }
+        .subject-icon-wrap {
+            width: 42px; height: 42px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.4rem; flex-shrink: 0;
+        }
+        .subject-info { flex: 1; min-width: 100px; }
+        .subject-name { font-weight: 700; color: #333; font-size: 0.95rem; }
+        .subject-detail { font-size: 0.78rem; color: #888; margin-top: 2px; }
+        .subject-bar-wrap { flex: 3; min-width: 120px; }
+        .subject-bar-bg { background: #f0f0f0; border-radius: 8px; height: 12px; }
+        .subject-bar { height: 100%; border-radius: 8px; transition: width 1s ease; }
+        .subject-badge {
+            padding: 4px 12px; border-radius: 20px; font-size: 0.78rem;
+            font-weight: 700; white-space: nowrap;
+        }
+        .badge-master  { background: #E8F5E9; color: #2e7d32; }
+        .badge-pass    { background: #FFF3E0; color: #e65100; }
+        .badge-weak    { background: #FFEBEE; color: #c62828; }
+        .badge-none    { background: #f5f5f5; color: #aaa; }
+
+        /* 近期活跃 */
+        .activity-row {
+            display: flex; gap: 6px; flex-wrap: wrap;
+        }
+        .activity-day {
+            width: 36px; height: 36px; border-radius: 8px;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            font-size: 0.65rem; font-weight: 600;
+            transition: transform 0.2s;
+        }
+        .activity-day:hover { transform: scale(1.15); }
+        .activity-day .day-num { font-size: 0.75rem; }
+        .activity-day.active { color: white; }
+        .activity-day.inactive { background: #f5f5f5; color: #ccc; }
+
+        /* 空态 */
+        .empty-state {
+            text-align: center; padding: 40px 20px; color: #aaa;
+        }
+        .empty-state .icon { font-size: 3.5rem; margin-bottom: 12px; }
+        .empty-state p { font-size: 1rem; }
+
+        /* 响应式 */
+        @media (max-width: 600px) {
+            body { padding: 12px; padding-top: 70px; }
+            .header h1 { font-size: 1.6rem; }
+            .back-link { top: 12px; left: 12px; padding: 8px 14px; font-size: 0.85rem; }
+            .overview-grid { grid-template-columns: repeat(2, 1fr); }
+            .mastery-ring-wrap { flex-direction: column; align-items: flex-start; }
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="back-link" id="homeLink">← 首页</a>
+
+    <div class="container">
+        <div class="header">
+            <h1>📊 学情诊断</h1>
+            <p>了解孩子的学习掌握情况，找准薄弱点精准补强</p>
+        </div>
+
+        <!-- 选择小朋友 -->
+        <div class="kid-selector-bar">
+            <label>👶 选择小朋友：</label>
+            <select id="kidSelector">
+                <option value="">-- 请选择 --</option>
+            </select>
+            <button class="btn-refresh" onclick="loadDiagnosis()">🔍 查看诊断</button>
+        </div>
+
+        <!-- 诊断内容 -->
+        <div id="diagnosisContent">
+            <div class="empty-state">
+                <div class="icon">📋</div>
+                <p>请选择小朋友后点击「查看诊断」</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const pathParts = window.location.pathname.split('/');
+        const appIndex = pathParts.indexOf('app');
+        const BASE_PATH = appIndex >= 0 ? '/' + pathParts.slice(1, appIndex + 2).join('/') : '';
+        const API_BASE = BASE_PATH + '/api';
+
+        // 修正链接
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('a[href^="/"]').forEach(link => {
+                const href = link.getAttribute('href');
+                if (BASE_PATH && !href.startsWith(BASE_PATH)) link.href = BASE_PATH + href;
+            });
+        });
+
+        // 加载小朋友列表
+        async function loadKids() {
+            try {
+                const res = await fetch(`${API_BASE}/kids`);
+                const data = await res.json();
+                if (data.success && data.data.length > 0) {
+                    const sel = document.getElementById('kidSelector');
+                    const savedId = localStorage.getItem('currentKidId');
+                    data.data.forEach(kid => {
+                        const opt = document.createElement('option');
+                        opt.value = kid.id;
+                        opt.textContent = kid.name + (kid.nickname ? ` (${kid.nickname})` : '');
+                        if (String(kid.id) === savedId) opt.selected = true;
+                        sel.appendChild(opt);
+                    });
+                    if (sel.value) loadDiagnosis();
+                }
+            } catch (e) { console.error('加载失败', e); }
+        }
+
+        async function loadDiagnosis() {
+            const kidId = document.getElementById('kidSelector').value;
+            if (!kidId) return;
+            localStorage.setItem('currentKidId', kidId);
+
+            const content = document.getElementById('diagnosisContent');
+            content.innerHTML = '<div class="empty-state"><div class="icon">⏳</div><p>正在加载...</p></div>';
+
+            try {
+                const [diagRes, statsRes] = await Promise.all([
+                    fetch(`${API_BASE}/diagnosis/${kidId}`),
+                    fetch(`${API_BASE}/stats/${kidId}`)
+                ]);
+                const diag = await diagRes.json();
+                const stats = await statsRes.json();
+                if (!diag.success) throw new Error(diag.message);
+
+                renderDiagnosis(diag.data, stats.data);
+            } catch (e) {
+                content.innerHTML = `<div class="empty-state"><div class="icon">❌</div><p>加载失败：${e.message}</p></div>`;
+            }
+        }
+
+        function renderDiagnosis(d, stats) {
+            const m = d.mistakes;
+            const ringColor = m.mastery >= 80 ? '#4CAF50' : m.mastery >= 50 ? '#FF9800' : '#f44336';
+            const circumference = 2 * Math.PI * 54;
+            const offset = circumference * (1 - m.mastery / 100);
+
+            // 各科颜色
+            const subjectColors = ['#667eea','#ff6b6b','#4ECDC4','#FFD93D','#A8E6CF','#FF8B94'];
+
+            // 近期30天活跃热力图
+            const activityMap = {};
+            d.recentActivity.forEach(r => { activityMap[r.learning_date] = r.minutes || 0; });
+
+            const today = new Date();
+            const days = [];
+            for (let i = 29; i >= 0; i--) {
+                const d2 = new Date(today);
+                d2.setDate(today.getDate() - i);
+                const key = d2.toISOString().split('T')[0];
+                days.push({ date: key, day: d2.getDate(), minutes: activityMap[key] || 0 });
+            }
+
+            const activityHtml = days.map(day => {
+                if (day.minutes > 0) {
+                    const intensity = Math.min(1, day.minutes / 60);
+                    const bg = `rgba(102,126,234,${0.3 + intensity * 0.7})`;
+                    return `<div class="activity-day active" style="background:${bg}" title="${day.date} · ${day.minutes}分钟">
+                        <span class="day-num">${day.day}</span>
+                    </div>`;
+                }
+                return `<div class="activity-day inactive" title="${day.date}"><span class="day-num">${day.day}</span></div>`;
+            }).join('');
+
+            // 各科行
+            const subjectHtml = d.subjects.map((s, i) => {
+                if (s.record_count === 0) return '';
+                const color = subjectColors[i % subjectColors.length];
+                const badgeClass = s.level === '精通' ? 'badge-master' : s.level === '合格' ? 'badge-pass' : s.level === '薄弱' ? 'badge-weak' : 'badge-none';
+                return `
+                <div class="subject-row">
+                    <div class="subject-icon-wrap" style="background:${color}22;">${s.icon || '📚'}</div>
+                    <div class="subject-info">
+                        <div class="subject-name">${s.name}</div>
+                        <div class="subject-detail">${s.record_count} 次学习 · 共 ${s.total_min} 分钟</div>
+                    </div>
+                    <div class="subject-bar-wrap">
+                        <div class="subject-bar-bg">
+                            <div class="subject-bar" style="width:${s.mastery}%;background:${color};"></div>
+                        </div>
+                    </div>
+                    <span class="subject-badge ${badgeClass}">${s.level} ${s.mastery}%</span>
+                </div>`;
+            }).filter(Boolean).join('') || '<div class="empty-state" style="padding:20px;"><p>暂无学习记录</p></div>';
+
+            document.getElementById('diagnosisContent').innerHTML = `
+                <!-- 总览 -->
+                <div class="overview-grid">
+                    <div class="overview-card">
+                        <div class="overview-icon">📝</div>
+                        <div class="overview-value">${stats?.total_records || 0}</div>
+                        <div class="overview-label">学习记录</div>
+                    </div>
+                    <div class="overview-card">
+                        <div class="overview-icon">⏱️</div>
+                        <div class="overview-value">${stats?.total_minutes || 0}</div>
+                        <div class="overview-label">学习分钟</div>
+                    </div>
+                    <div class="overview-card">
+                        <div class="overview-icon">🏆</div>
+                        <div class="overview-value">${stats?.total_achievements || 0}</div>
+                        <div class="overview-label">获得成就</div>
+                    </div>
+                    <div class="overview-card">
+                        <div class="overview-icon">💎</div>
+                        <div class="overview-value">${stats?.total_points || 0}</div>
+                        <div class="overview-label">成长积分</div>
+                    </div>
+                </div>
+
+                <!-- 汉字掌握度 -->
+                <div class="card">
+                    <div class="card-title">📖 汉字学习进度</div>
+                    <div class="mastery-ring-wrap">
+                        <div class="ring-container">
+                            <svg width="130" height="130" viewBox="0 0 130 130">
+                                <circle class="ring-bg" cx="65" cy="65" r="54"/>
+                                <circle class="ring-fill" cx="65" cy="65" r="54"
+                                    stroke="${ringColor}"
+                                    stroke-dasharray="${circumference}"
+                                    stroke-dashoffset="${offset}"/>
+                            </svg>
+                            <div class="ring-text">
+                                <div class="ring-percent" style="color:${ringColor}">${m.mastery}%</div>
+                                <div class="ring-sub">掌握度</div>
+                            </div>
+                        </div>
+                        <div class="mistake-breakdown">
+                            ${[
+                                { label: '已掌握', count: m.mastered, color: '#4CAF50', total: m.total },
+                                { label: '练习中', count: m.practicing, color: '#FF9800', total: m.total },
+                                { label: '待攻克', count: m.new, color: '#f44336', total: m.total }
+                            ].map(item => `
+                                <div class="breakdown-item">
+                                    <div class="breakdown-dot" style="background:${item.color};"></div>
+                                    <div class="breakdown-label">${item.label}</div>
+                                    <div class="breakdown-count">${item.count}</div>
+                                    <div class="breakdown-bar-wrap">
+                                        <div class="breakdown-bar" style="width:${item.total > 0 ? Math.round(item.count/item.total*100) : 0}%;background:${item.color};"></div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                            <div style="margin-top:12px; font-size:0.82rem; color:#aaa;">共 ${m.total} 个字 · 掌握 ${m.mastered} 个</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 各科掌握度 -->
+                <div class="card">
+                    <div class="card-title">📊 各科学习情况</div>
+                    ${subjectHtml}
+                </div>
+
+                <!-- 近期活跃 -->
+                <div class="card">
+                    <div class="card-title">🗓️ 近30天学习热力图
+                        <span style="font-size:0.82rem;font-weight:400;color:#888;margin-left:8px;">
+                            活跃 ${d.activeDays} 天 · 共 ${d.recentMinutes} 分钟
+                        </span>
+                    </div>
+                    <div class="activity-row">${activityHtml}</div>
+                    <div style="display:flex;gap:16px;margin-top:12px;font-size:0.78rem;color:#aaa;align-items:center;">
+                        <span>少</span>
+                        ${[0.1,0.3,0.6,1].map(a => `<div style="width:18px;height:18px;border-radius:5px;background:rgba(102,126,234,${a});"></div>`).join('')}
+                        <span>多</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        document.addEventListener('DOMContentLoaded', loadKids);
+    </script>
+</body>
+</html>

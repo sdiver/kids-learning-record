@@ -900,6 +900,104 @@ apiRouter.get('/stats/:kid_id', (req, res) => {
     );
 });
 
+// ==================== 学情诊断 API ====================
+
+// 获取小朋友学情诊断数据
+apiRouter.get('/diagnosis/:kid_id', (req, res) => {
+    const kidId = req.params.kid_id;
+
+    // 并行查询：错字统计 + 各科学习记录 + 最近7天活跃度
+    const q1 = new Promise((resolve, reject) => {
+        db.all(
+            `SELECT status, COUNT(*) as cnt FROM mistakes WHERE kid_id = ? GROUP BY status`,
+            [kidId],
+            (err, rows) => err ? reject(err) : resolve(rows)
+        );
+    });
+
+    const q2 = new Promise((resolve, reject) => {
+        db.all(
+            `SELECT s.name as subject, s.icon, s.color,
+                    COUNT(lr.id) as record_count,
+                    ROUND(AVG(lr.performance), 1) as avg_perf,
+                    COALESCE(SUM(lr.duration), 0) as total_min
+             FROM subjects s
+             LEFT JOIN learning_records lr ON s.id = lr.subject_id AND lr.kid_id = ?
+             GROUP BY s.id, s.name, s.icon, s.color
+             ORDER BY record_count DESC`,
+            [kidId],
+            (err, rows) => err ? reject(err) : resolve(rows)
+        );
+    });
+
+    const q3 = new Promise((resolve, reject) => {
+        db.all(
+            `SELECT learning_date, COUNT(*) as sessions, SUM(duration) as minutes
+             FROM learning_records
+             WHERE kid_id = ? AND learning_date >= date('now', '-30 days')
+             GROUP BY learning_date
+             ORDER BY learning_date DESC`,
+            [kidId],
+            (err, rows) => err ? reject(err) : resolve(rows)
+        );
+    });
+
+    const q4 = new Promise((resolve, reject) => {
+        db.get(
+            `SELECT COUNT(*) as practice_count,
+                    ROUND(AVG(CASE WHEN content LIKE '%分' THEN
+                        CAST(REPLACE(SUBSTR(content, INSTR(content, '- ') + 2), '分', '') AS INTEGER)
+                    END), 0) as avg_score
+             FROM learning_records
+             WHERE kid_id = ? AND content LIKE '% - %分'`,
+            [kidId],
+            (err, row) => err ? reject(err) : resolve(row)
+        );
+    });
+
+    Promise.all([q1, q2, q3, q4])
+        .then(([mistakeStats, subjectStats, recentActivity, practiceStats]) => {
+            // 整理错字数据
+            const mistakeMap = {};
+            mistakeStats.forEach(r => { mistakeMap[r.status] = r.cnt; });
+            const mNew = mistakeMap['new'] || 0;
+            const mPracticing = mistakeMap['practicing'] || 0;
+            const mMastered = mistakeMap['mastered'] || 0;
+            const mTotal = mNew + mPracticing + mMastered;
+
+            // 汉字掌握度：mastered / total
+            const charMastery = mTotal > 0 ? Math.round((mMastered / mTotal) * 100) : 0;
+
+            // 各科掌握度：avg_perf 映射到 0-100（1星=20分，5星=100分）
+            const subjects = subjectStats.map(s => {
+                const mastery = s.avg_perf ? Math.round(s.avg_perf * 20) : 0;
+                let level = '未学习';
+                if (s.record_count === 0) level = '未学习';
+                else if (mastery >= 80) level = '精通';
+                else if (mastery >= 60) level = '合格';
+                else level = '薄弱';
+                return { ...s, mastery, level };
+            });
+
+            // 最近30天活跃天数
+            const activeDays = recentActivity.length;
+            const recentMinutes = recentActivity.reduce((sum, r) => sum + (r.minutes || 0), 0);
+
+            res.json({
+                success: true,
+                data: {
+                    mistakes: { total: mTotal, new: mNew, practicing: mPracticing, mastered: mMastered, mastery: charMastery },
+                    subjects,
+                    recentActivity,
+                    activeDays,
+                    recentMinutes,
+                    practiceStats: practiceStats || { practice_count: 0, avg_score: null }
+                }
+            });
+        })
+        .catch(err => res.status(500).json({ success: false, message: err.message }));
+});
+
 // ==================== 错字本管理 API ====================
 
 // 获取小朋友的错字列表
@@ -972,7 +1070,7 @@ apiRouter.post('/mistakes', (req, res) => {
 
 // 更新错字（复习次数、状态等）
 apiRouter.put('/mistakes/:id', (req, res) => {
-    const { review_count, status } = req.body;
+    const { review_count, status, review_count_increment } = req.body;
     const updates = [];
     const params = [];
 
@@ -981,7 +1079,12 @@ apiRouter.put('/mistakes/:id', (req, res) => {
         params.push(review_count);
         updates.push('last_reviewed = CURRENT_TIMESTAMP');
     }
-    
+
+    if (review_count_increment) {
+        updates.push('review_count = review_count + 1');
+        updates.push('last_reviewed = CURRENT_TIMESTAMP');
+    }
+
     if (status) {
         updates.push('status = ?');
         params.push(status);
@@ -1001,6 +1104,57 @@ apiRouter.put('/mistakes/:id', (req, res) => {
         params,
         (err) => {
             if (err) return res.status(500).json({ success: false, message: err.message });
+
+            // C2: 里程碑成就 — 当状态改为 mastered 时检查
+            if (status === 'mastered') {
+                db.get(
+                    `SELECT m.kid_id, COUNT(*) as mastered_count
+                     FROM mistakes m
+                     WHERE m.id = ? AND m.status = 'mastered'`,
+                    [req.params.id],
+                    (err2, row) => {
+                        if (err2 || !row || !row.kid_id) return;
+                        const kid_id = row.kid_id;
+                        db.get(
+                            `SELECT COUNT(*) as cnt FROM mistakes WHERE kid_id = ? AND status = 'mastered'`,
+                            [kid_id],
+                            (err3, countRow) => {
+                                if (err3 || !countRow) return;
+                                const cnt = countRow.cnt;
+                                const milestones = [
+                                    { n: 10,  icon: '🌟', title: '识字小能手',  desc: '累计掌握 10 个汉字' },
+                                    { n: 30,  icon: '📖', title: '识字达人',    desc: '累计掌握 30 个汉字' },
+                                    { n: 50,  icon: '🏆', title: '汉字小博士',  desc: '累计掌握 50 个汉字' },
+                                    { n: 100, icon: '👑', title: '汉字大师',    desc: '累计掌握 100 个汉字' }
+                                ];
+                                const hit = milestones.find(m => m.n === cnt);
+                                if (!hit) return;
+                                // 检查是否已颁发
+                                db.get(
+                                    `SELECT id FROM achievements WHERE kid_id = ? AND title = ?`,
+                                    [kid_id, hit.title],
+                                    (err4, existing) => {
+                                        if (existing) return;
+                                        db.run(
+                                            `INSERT INTO achievements (kid_id, title, description, badge_icon, earned_at) VALUES (?, ?, ?, ?, date('now'))`,
+                                            [kid_id, hit.title, hit.desc, hit.icon],
+                                            function(err5) {
+                                                if (err5) return;
+                                                db.run(
+                                                    `INSERT INTO points (kid_id, points, reason, record_type) VALUES (?, 50, ?, 'earn')`,
+                                                    [kid_id, `获得成就：${hit.title}`]
+                                                );
+                                                console.log(`✅ 自动颁发里程碑成就：${hit.title} → kid_id=${kid_id}`);
+                                            }
+                                        );
+                                    }
+                                );
+                            }
+                        );
+                    }
+                );
+            }
+
             res.json({ success: true, message: '更新成功' });
         }
     );

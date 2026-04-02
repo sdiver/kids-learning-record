@@ -367,6 +367,9 @@ const englishData = {
     ]
 };
 
+// 专项练习：错字本数据
+let smartMistakesPool = [];
+
 // 当前小朋友ID
 let currentKidId = localStorage.getItem('currentKidId') || '';
 
@@ -416,14 +419,17 @@ function initTypeSelector() {
             card.classList.add('active');
             currentType = card.dataset.type;
 
-            // 显示/隐藏数学类型选择器
+            // 显示/隐藏数学类型选择器 & 难度选择器
             const mathTypeSelector = document.getElementById('mathTypeSelector');
             const difficultySelector = document.getElementById('difficultySelector');
             if (mathTypeSelector && difficultySelector) {
                 if (currentType === 'math') {
                     mathTypeSelector.classList.remove('hidden');
-                    // 数学模式下也显示难度选择器
                     difficultySelector.classList.remove('hidden');
+                } else if (currentType === 'smart' || currentType === 'dictation') {
+                    // 专项/听写模式：难度由错字本决定，不显示选择器
+                    mathTypeSelector.classList.add('hidden');
+                    difficultySelector.classList.add('hidden');
                 } else {
                     mathTypeSelector.classList.add('hidden');
                     difficultySelector.classList.remove('hidden');
@@ -474,9 +480,11 @@ function updatePracticeTitle() {
         pinyin: '拼音练习',
         math: '数学口算',
         chinese: '语文识字',
-        english: '英语单词'
+        english: '英语单词',
+        smart: '专项识字',
+        dictation: '听写训练'
     };
-    document.getElementById('practiceTitle').textContent = titles[currentType];
+    document.getElementById('practiceTitle').textContent = titles[currentType] || currentType;
 }
 
 // 重置练习
@@ -497,7 +505,28 @@ function resetPractice() {
 }
 
 // 开始练习
-function startPractice() {
+async function startPractice() {
+    // 专项识字 / 听写：需要先加载错字本
+    if (currentType === 'smart' || currentType === 'dictation') {
+        if (!currentKidId) {
+            document.getElementById('controlArea').innerHTML = `
+                <div style="color:#f44336;margin-bottom:12px;">请先在上方选择小朋友</div>
+                <button class="btn btn-secondary" onclick="resetPractice()">返回</button>
+            `;
+            return;
+        }
+        document.getElementById('controlArea').innerHTML = `<div style="color:#888">⏳ 正在加载错字本...</div>`;
+        try {
+            const res = await fetch(`${API_BASE}/mistakes/${currentKidId}`);
+            const data = await res.json();
+            if (data.success) {
+                smartMistakesPool = data.data.filter(m => m.status !== 'mastered').sort((a, b) => b.count - a.count);
+            }
+        } catch (e) {
+            smartMistakesPool = [];
+        }
+    }
+
     correctCount = 0;
     wrongCount = 0;
     streakCount = 0;
@@ -534,6 +563,12 @@ function nextQuestion() {
             break;
         case 'english':
             generateEnglishQuestion();
+            break;
+        case 'smart':
+            generateSmartQuestion();
+            break;
+        case 'dictation':
+            generateDictationQuestion();
             break;
     }
 }
@@ -966,16 +1001,220 @@ function showResult() {
     savePracticeRecord(score);
 }
 
+// ==================== 专项识字（A2）====================
+
+function generateSmartQuestion() {
+    if (smartMistakesPool.length === 0) {
+        document.getElementById('questionText').innerHTML = `
+            <div style="font-size: 3rem; margin-bottom: 12px;">🎉</div>
+            <div style="font-size: 1.3rem; color: #667eea; font-weight: 700;">错字本是空的！</div>
+            <div style="font-size: 1rem; color: #888; margin-top: 8px;">先去朗读练习积累错字吧</div>
+        `;
+        document.getElementById('optionsArea').innerHTML = '';
+        document.getElementById('inputArea').classList.add('hidden');
+        document.getElementById('controlArea').innerHTML = `
+            <button class="btn btn-primary" onclick="resetPractice()">返回选择</button>
+        `;
+        return;
+    }
+
+    const idx = Math.floor(Math.random() * Math.min(smartMistakesPool.length, 10));
+    const mistake = smartMistakesPool[idx];
+    const correct = mistake.char;
+    const pinyin = mistake.pinyin || '?';
+
+    const options = [correct];
+    const otherChars = smartMistakesPool.map(m => m.char).filter(c => c !== correct && [...c].length === [...correct].length);
+    for (const c of otherChars) {
+        if (options.length >= 4) break;
+        options.push(c);
+    }
+    // 补充至 4 个
+    if (options.length < 4) {
+        const pool = [...commonChars.hard, ...commonChars.medium].filter(c => !options.includes(c) && [...c].length === [...correct].length);
+        while (options.length < 4 && pool.length > 0) {
+            options.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+        }
+    }
+    // 如果还不够（单字 vs 多字不匹配），用任意字补够
+    if (options.length < 4) {
+        const fallback = [...commonChars.hard, ...commonChars.medium].filter(c => !options.includes(c));
+        while (options.length < 4 && fallback.length > 0) {
+            options.push(fallback.splice(Math.floor(Math.random() * fallback.length), 1)[0]);
+        }
+    }
+
+    currentQuestion = { pinyin, correct, options, mistakeId: mistake.id };
+    pinyinSelectedAnswer = null;
+    pinyinSelectedBtn = null;
+
+    document.getElementById('questionText').innerHTML = `
+        <div class="pinyin" style="font-size: 3.8rem; color: #ff6b6b; font-weight: bold;">${pinyin}</div>
+        <div style="font-size: 0.85rem; color: #aaa; margin-top: 6px;">📚 错字专项 · 选出正确的汉字</div>
+    `;
+
+    const optionsArea = document.getElementById('optionsArea');
+    optionsArea.classList.remove('hidden');
+    document.getElementById('inputArea').classList.add('hidden');
+
+    const shuffled = [...options].sort(() => Math.random() - 0.5);
+    optionsArea.innerHTML = shuffled.map(char => `
+        <button class="option-btn pinyin-option" data-char="${char}"
+                onclick="selectPinyinOption('${char}', this)"
+                style="font-size: 3rem; font-weight: bold;">
+            ${char}
+        </button>
+    `).join('');
+
+    document.getElementById('controlArea').innerHTML = `
+        <button class="btn btn-primary" id="pinyinConfirmBtn" onclick="confirmSmartAnswer()"
+                disabled style="opacity:0.5; font-size:1.1rem; padding:14px 36px;">
+            ✅ 确认选择
+        </button>
+    `;
+}
+
+function confirmSmartAnswer() {
+    if (isAnswered || !pinyinSelectedAnswer || !pinyinSelectedBtn) return;
+    isAnswered = true;
+
+    const isCorrect = pinyinSelectedAnswer === currentQuestion.correct;
+
+    if (isCorrect) {
+        pinyinSelectedBtn.classList.add('correct');
+        correctCount++;
+        streakCount++;
+        if (streakCount >= 3) showStreakMessage();
+    } else {
+        pinyinSelectedBtn.classList.add('wrong');
+        wrongCount++;
+        streakCount = 0;
+        document.querySelectorAll('.pinyin-option').forEach(btn => {
+            if (btn.dataset.char === currentQuestion.correct) {
+                btn.style.borderColor = '#4CAF50';
+                btn.style.background = '#E8F5E9';
+            }
+        });
+        document.getElementById('questionText').innerHTML += `
+            <div style="color:#4CAF50;font-size:1.5rem;margin-top:15px;">正确答案是「${currentQuestion.correct}」</div>
+        `;
+    }
+
+    updateStats();
+    // 更新复习次数
+    if (currentQuestion.mistakeId) {
+        fetch(`${API_BASE}/mistakes/${currentQuestion.mistakeId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ review_count_increment: 1 })
+        }).catch(() => {});
+    }
+
+    setTimeout(() => { isAnswered = false; nextQuestion(); }, isCorrect ? 1200 : 2000);
+}
+
+// ==================== 听写训练（B3）====================
+
+function generateDictationQuestion() {
+    // 题库优先用错字本，否则降级到语文词库
+    let pool = [];
+    if (smartMistakesPool.length > 0) {
+        pool = smartMistakesPool.map(m => ({ char: m.char, pinyin: m.pinyin || '' }));
+    } else {
+        pool = chineseData[currentDifficulty].map(q => ({ char: q.char, pinyin: q.pinyin }));
+    }
+
+    const item = pool[Math.floor(Math.random() * pool.length)];
+    currentQuestion = { char: item.char, pinyin: item.pinyin, type: 'dictation' };
+
+    // 自动朗读
+    setTimeout(() => speakCharPinyin(item.char), 400);
+
+    document.getElementById('questionText').innerHTML = `
+        <div style="font-size: 4.5rem; margin-bottom: 8px; animation: pulse 2s infinite;">🎧</div>
+        <div style="font-size: 1.1rem; color: #667eea; font-weight: 700;">仔细听，写出你听到的字</div>
+        <button class="btn btn-secondary" onclick="speakCharPinyin('${item.char.replace(/'/g, "\\'")}')"
+                style="margin-top:12px; padding:8px 20px; font-size:0.9rem;">
+            🔊 再听一遍
+        </button>
+    `;
+
+    const optionsArea = document.getElementById('optionsArea');
+    optionsArea.innerHTML = '';
+    optionsArea.classList.add('hidden');
+
+    const inputArea = document.getElementById('inputArea');
+    inputArea.classList.remove('hidden');
+    inputArea.innerHTML = `
+        <input type="text" id="dictationInput"
+               placeholder="写字…"
+               maxlength="6"
+               style="font-size:2.5rem; text-align:center; width:160px; padding:14px;
+                      border:3px solid #e0e0e0; border-radius:15px; font-family:inherit;
+                      outline:none; transition:border-color 0.2s;">
+        <button class="btn btn-primary" onclick="checkDictationAnswer()" style="font-size:1rem;">确认</button>
+    `;
+
+    document.getElementById('controlArea').innerHTML = `
+        <button class="btn btn-secondary" onclick="resetPractice()">结束练习</button>
+    `;
+
+    setTimeout(() => {
+        const input = document.getElementById('dictationInput');
+        if (input) {
+            input.focus();
+            input.addEventListener('keydown', e => { if (e.key === 'Enter') checkDictationAnswer(); });
+        }
+    }, 100);
+}
+
+function checkDictationAnswer() {
+    if (isAnswered) return;
+    const input = document.getElementById('dictationInput');
+    if (!input) return;
+    const answer = input.value.trim();
+    if (!answer) { input.focus(); return; }
+    isAnswered = true;
+
+    const isCorrect = answer === currentQuestion.char;
+
+    if (isCorrect) {
+        correctCount++;
+        streakCount++;
+        if (streakCount >= 3) showStreakMessage();
+        input.style.borderColor = '#4CAF50';
+        input.style.background = '#E8F5E9';
+        showEncouragement('✅ 写对了！');
+    } else {
+        wrongCount++;
+        streakCount = 0;
+        input.style.borderColor = '#f44336';
+        input.style.background = '#FFEBEE';
+        document.getElementById('questionText').innerHTML += `
+            <div style="color:#4CAF50; font-size:2.2rem; margin-top:14px; font-weight:bold;">
+                正确：${currentQuestion.char}
+            </div>
+            <div style="color:#888; font-size:1rem;">${currentQuestion.pinyin}</div>
+        `;
+        speakCharPinyin(currentQuestion.char);
+    }
+
+    updateStats();
+    setTimeout(() => { isAnswered = false; nextQuestion(); }, isCorrect ? 1000 : 2200);
+}
+
 // 保存练习记录
 function savePracticeRecord(score) {
     const kidId = localStorage.getItem('currentKidId');
     if (!kidId) return;
 
     const subjectMap = {
-        pinyin: 1,  // 语文
-        math: 2,    // 数学
-        chinese: 1, // 语文
-        english: 3  // 英语
+        pinyin: 1,    // 语文
+        math: 2,      // 数学
+        chinese: 1,   // 语文
+        english: 3,   // 英语
+        smart: 1,     // 语文
+        dictation: 1  // 语文
     };
 
     fetch(`${API_BASE}/records`, {
