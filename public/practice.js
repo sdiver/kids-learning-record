@@ -242,6 +242,79 @@ const pinyinData = {
     ]
 };
 
+// ==================== 拼音题库扩展与加权 ====================
+
+// 从 localStorage 加载 AI 生成的扩展题目（启动时合并进 pinyinData）
+function loadExpandedQuestions() {
+    ['easy', 'medium', 'hard'].forEach(level => {
+        try {
+            const saved = localStorage.getItem(`pinyinExpanded_${level}`);
+            if (saved) pinyinData[level].push(...JSON.parse(saved));
+        } catch(e) {}
+    });
+}
+
+// 错误权重：答错 +3，答对 -1（下限 0），持久化到 localStorage
+let pinyinWrongWeights = {};
+try { pinyinWrongWeights = JSON.parse(localStorage.getItem('pinyinWrongWeights') || '{}'); } catch(e) {}
+
+function savePinyinWeights() {
+    localStorage.setItem('pinyinWrongWeights', JSON.stringify(pinyinWrongWeights));
+}
+
+// 加权随机选题（错误多的题目出现概率更高）
+function selectWeightedPinyinQuestion(questions) {
+    const weights = questions.map(q => 1 + (pinyinWrongWeights[q.pinyin + '|' + q.correct] || 0));
+    const total = weights.reduce((a, b) => a + b, 0);
+    let rand = Math.random() * total;
+    for (let i = 0; i < questions.length; i++) {
+        rand -= weights[i];
+        if (rand <= 0) return questions[i];
+    }
+    return questions[questions.length - 1];
+}
+
+// 更新题库数量显示
+function updatePinyinPoolSize() {
+    const el = document.getElementById('pinyinPoolSize');
+    if (el) el.textContent = `题库: ${(pinyinData[currentDifficulty] || []).length} 题`;
+}
+
+// AI 扩种
+async function expandPinyinPool() {
+    const btn = document.getElementById('pinyinExpandBtn');
+    if (!btn || btn.disabled) return;
+    btn.disabled = true;
+    btn.textContent = '⏳ 生成中...';
+    try {
+        const res = await fetch(`${API_BASE}/pinyin/expand`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ level: currentDifficulty })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message);
+
+        // 去重后合并
+        const existingKeys = new Set(pinyinData[currentDifficulty].map(q => q.pinyin + '|' + q.correct));
+        const newOnes = data.data.filter(q => !existingKeys.has(q.pinyin + '|' + q.correct));
+        pinyinData[currentDifficulty].push(...newOnes);
+
+        // 持久化到 localStorage
+        const savedKey = `pinyinExpanded_${currentDifficulty}`;
+        const existing = JSON.parse(localStorage.getItem(savedKey) || '[]');
+        existing.push(...newOnes);
+        localStorage.setItem(savedKey, JSON.stringify(existing));
+
+        updatePinyinPoolSize();
+        btn.textContent = `✅ 已添加 ${newOnes.length} 题`;
+        setTimeout(() => { btn.textContent = '✨ AI扩种'; btn.disabled = false; }, 2000);
+    } catch(e) {
+        btn.textContent = '❌ 失败，重试';
+        setTimeout(() => { btn.textContent = '✨ AI扩种'; btn.disabled = false; }, 2500);
+    }
+}
+
 // 用于生成差异化干扰项的汉字库
 const commonChars = {
     easy: ['一', '二', '三', '人', '口', '日', '月', '山', '水', '火', '木', '土', '天', '地', '上', '下', '大', '小', '手', '足', '耳', '目', '头', '尾', '牛', '马', '羊', '鸡', '鸭', '鱼'],
@@ -548,10 +621,12 @@ let currentKidId = localStorage.getItem('currentKidId') || '';
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
+    loadExpandedQuestions();
     initTypeSelector();
     initDifficultySelector();
     initMathTypeSelector();
     loadKids();
+    updatePinyinPoolSize(); // 初始显示拼音题库数量
 });
 
 // 加载小朋友列表
@@ -595,6 +670,7 @@ function initTypeSelector() {
             // 显示/隐藏数学类型选择器 & 难度选择器
             const mathTypeSelector = document.getElementById('mathTypeSelector');
             const difficultySelector = document.getElementById('difficultySelector');
+            const pinyinToolbar = document.getElementById('pinyinToolbar');
             if (mathTypeSelector && difficultySelector) {
                 if (currentType === 'math') {
                     mathTypeSelector.classList.remove('hidden');
@@ -607,6 +683,11 @@ function initTypeSelector() {
                     mathTypeSelector.classList.add('hidden');
                     difficultySelector.classList.remove('hidden');
                 }
+            }
+            // 拼音工具栏仅拼音模式显示
+            if (pinyinToolbar) {
+                pinyinToolbar.style.display = (currentType === 'pinyin') ? 'flex' : 'none';
+                if (currentType === 'pinyin') updatePinyinPoolSize();
             }
 
             updatePracticeTitle();
@@ -642,6 +723,7 @@ function initDifficultySelector() {
             document.querySelectorAll('.difficulty-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             currentDifficulty = btn.dataset.level;
+            if (currentType === 'pinyin') updatePinyinPoolSize();
             resetPractice();
         });
     });
@@ -872,12 +954,18 @@ function confirmPinyinAnswer() {
     const isCorrect = pinyinSelectedAnswer === currentQuestion.correct;
     // 记录答题结果到统计
     recordPinyinResult(currentQuestion.pinyin, currentQuestion.correct, isCorrect);
+    const weightKey = currentQuestion.pinyin + '|' + currentQuestion.correct;
 
     // 显示结果
     if (isCorrect) {
         pinyinSelectedBtn.classList.add('correct');
         correctCount++;
         streakCount++;
+        // 答对：权重递减（最低 0）
+        if (pinyinWrongWeights[weightKey] > 0) {
+            pinyinWrongWeights[weightKey] = Math.max(0, pinyinWrongWeights[weightKey] - 1);
+            savePinyinWeights();
+        }
         if (streakCount >= 3) {
             showStreakMessage();
         }
@@ -885,6 +973,9 @@ function confirmPinyinAnswer() {
         pinyinSelectedBtn.classList.add('wrong');
         wrongCount++;
         streakCount = 0;
+        // 答错：权重增加，下次更容易出现
+        pinyinWrongWeights[weightKey] = (pinyinWrongWeights[weightKey] || 0) + 3;
+        savePinyinWeights();
 
         // 高亮正确答案
         document.querySelectorAll('.pinyin-option').forEach(btn => {

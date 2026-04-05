@@ -179,6 +179,34 @@ Auth header: `Authorization: Bearer <token>`
 
 The server is designed to work identically in all three environments without code changes — only environment variables differ.
 
+### 生产服务器（Synology NAS）
+
+| 项目 | 值 |
+|---|---|
+| IP | `10.147.20.30` |
+| SSH 端口 | `54646` |
+| 用户名 | `sdiver` |
+| 项目目录 | `/volume2/docker/homegate/parent/kids-learning-record` |
+
+**本地快速连接：**
+```bash
+ssh -p 54646 sdiver@10.147.20.30
+```
+
+**部署更新（推荐流程）：**
+```bash
+# 1. 本地推送代码到 git
+git push
+
+# 2. SSH 登录后拉取并重启容器
+ssh -p 54646 sdiver@10.147.20.30
+cd /volume2/docker/homegate/parent/kids-learning-record
+git pull
+docker-compose up -d --build
+```
+
+> 密码请自行保管，勿写入代码或配置文件。建议配置 SSH 免密登录（`ssh-copy-id`）。
+
 ---
 
 ## WeChat Integration

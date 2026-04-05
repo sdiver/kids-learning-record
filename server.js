@@ -517,6 +517,111 @@ apiRouter.post('/generate-article', async (req, res) => {
     }
 });
 
+// ==================== AI 拼音扩题 API ====================
+apiRouter.post('/pinyin/expand', async (req, res) => {
+    const { level = 'medium' } = req.body;
+    if (!['easy', 'medium', 'hard'].includes(level)) {
+        return res.status(400).json({ success: false, message: '无效难度' });
+    }
+
+    const dbCfg = await loadAISettingsFromDB();
+    const ZHIPU_KEY     = dbCfg.zhipu_api_key     || process.env.ZHIPU_API_KEY;
+    const GROQ_KEY      = dbCfg.groq_api_key      || process.env.GROQ_API_KEY;
+    const GEMINI_KEY    = dbCfg.gemini_api_key     || process.env.GEMINI_API_KEY;
+    const DEEPSEEK_KEY  = dbCfg.deepseek_api_key   || process.env.DEEPSEEK_API_KEY;
+    const ANTHROPIC_KEY = dbCfg.anthropic_api_key  || process.env.ANTHROPIC_API_KEY;
+    const activeProvider = dbCfg.active_provider || '';
+
+    if (!ZHIPU_KEY && !GROQ_KEY && !GEMINI_KEY && !DEEPSEEK_KEY && !ANTHROPIC_KEY) {
+        return res.status(503).json({ success: false, message: '未配置AI密钥，请在后台AI设置中配置' });
+    }
+
+    const levelDesc = {
+        easy:   '小学一年级，基础单字和叠词（如：妈、爸爸、太阳）',
+        medium: '小学二年级，日常双字词（如：苹果、电脑、老师）',
+        hard:   '小学三年级，多字词或四字词组（如：长颈鹿、心想事成）'
+    };
+    const prompt = `为小学语文拼音练习生成10道新题目，难度：${levelDesc[level]}。
+每题包含：pinyin（带声调符号）、correct（正确汉字）、wrongOptions（恰好3个干扰汉字的数组）。
+只返回纯JSON数组，不要有任何说明文字：
+[{"pinyin":"bā","correct":"八","wrongOptions":["入","人","大"]},...]
+要求：题目不要与上述例子重复，干扰项要有一定迷惑性。`;
+
+    const messages = [
+        { role: 'system', content: '你是小学语文题目生成专家，严格按JSON格式输出，不输出任何多余文字。' },
+        { role: 'user', content: prompt }
+    ];
+
+    const callers = {
+        zhipu: async () => {
+            if (!ZHIPU_KEY) return null;
+            const r = await httpsPost('open.bigmodel.cn', '/api/paas/v4/chat/completions',
+                { 'Authorization': `Bearer ${ZHIPU_KEY}` },
+                { model: 'glm-4-flash', messages, max_tokens: 800 });
+            if (r.status !== 200) throw new Error(`GLM ${r.status}`);
+            return r.body.choices?.[0]?.message?.content;
+        },
+        groq: async () => {
+            if (!GROQ_KEY) return null;
+            const r = await httpsPost('api.groq.com', '/openai/v1/chat/completions',
+                { 'Authorization': `Bearer ${GROQ_KEY}` },
+                { model: 'qwen/qwen3-32b', messages, max_tokens: 800 });
+            if (r.status !== 200) throw new Error(`Groq ${r.status}`);
+            return r.body.choices?.[0]?.message?.content;
+        },
+        gemini: async () => {
+            if (!GEMINI_KEY) return null;
+            const r = await httpsPost('generativelanguage.googleapis.com',
+                `/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`, {},
+                { contents: [{ parts: [{ text: prompt }] }] });
+            if (r.status !== 200) throw new Error(`Gemini ${r.status}`);
+            return r.body.candidates?.[0]?.content?.parts?.[0]?.text;
+        },
+        deepseek: async () => {
+            if (!DEEPSEEK_KEY) return null;
+            const r = await httpsPost('api.deepseek.com', '/chat/completions',
+                { 'Authorization': `Bearer ${DEEPSEEK_KEY}` },
+                { model: 'deepseek-chat', messages, max_tokens: 800, stream: false });
+            if (r.status !== 200) throw new Error(`DeepSeek ${r.status}`);
+            return r.body.choices?.[0]?.message?.content;
+        },
+        anthropic: async () => {
+            if (!ANTHROPIC_KEY) return null;
+            const r = await httpsPost('api.anthropic.com', '/v1/messages',
+                { 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
+                { model: 'claude-haiku-4-5-20251001', max_tokens: 800, messages: [{ role: 'user', content: prompt }] });
+            if (r.status !== 200) throw new Error(`Claude ${r.status}`);
+            return r.body.content?.[0]?.text;
+        }
+    };
+
+    const providerOrder = activeProvider ? [activeProvider] : ['zhipu', 'groq', 'gemini', 'deepseek', 'anthropic'];
+
+    try {
+        let text = '';
+        for (const provider of providerOrder) {
+            if (!callers[provider]) continue;
+            const t = await callers[provider]();
+            if (t) { text = t; console.log(`✅ 拼音扩题（${provider}）成功`); break; }
+        }
+        if (!text) throw new Error('所有AI provider均未返回内容');
+
+        const jsonMatch = text.match(/\[[\s\S]*\]/);
+        if (!jsonMatch) throw new Error('AI返回格式错误，未找到JSON数组');
+        const questions = JSON.parse(jsonMatch[0]);
+        const valid = questions.filter(q =>
+            q.pinyin && q.correct &&
+            Array.isArray(q.wrongOptions) && q.wrongOptions.length >= 2
+        );
+        if (valid.length === 0) throw new Error('AI返回的题目格式不正确');
+
+        res.json({ success: true, data: valid, level });
+    } catch (error) {
+        console.error('❌ 拼音扩题失败:', error.message);
+        res.status(500).json({ success: false, message: 'AI扩题失败：' + error.message });
+    }
+});
+
 // ==================== 认证 API ====================
 
 // 用户注册

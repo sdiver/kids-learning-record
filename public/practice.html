@@ -587,6 +587,15 @@
                 <button class="difficulty-btn" data-level="hard">困难</button>
             </div>
 
+            <!-- 拼音题库工具栏（仅拼音模式显示） -->
+            <div id="pinyinToolbar" style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+                <span id="pinyinPoolSize" style="color:#888;font-size:0.88rem;background:#f5f5f5;padding:5px 14px;border-radius:20px;">题库: -- 题</span>
+                <button id="pinyinExpandBtn" onclick="expandPinyinPool()"
+                    style="padding:5px 16px;border:2px solid #667eea;border-radius:20px;background:white;color:#667eea;font-weight:600;cursor:pointer;font-size:0.88rem;transition:all 0.2s;font-family:inherit;">
+                    ✨ AI扩种
+                </button>
+            </div>
+
             <!-- 数学类型选择（仅数学练习显示） -->
             <div class="difficulty-selector hidden" id="mathTypeSelector">
                 <button class="difficulty-btn active" data-math-type="addsub" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">➕➖ 加减法</button>
