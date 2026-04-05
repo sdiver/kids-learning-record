@@ -420,6 +420,11 @@
             }
         }
 
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
         /* 顶部导航按钮 */
         .top-nav {
             position: fixed;
@@ -561,6 +566,13 @@
                         <div class="stat-value" id="streakCount">0</div>
                         <div class="stat-label">连击</div>
                     </div>
+                    <!-- 仅拼音练习显示易错词按钮 -->
+                    <button id="toggleWeakBtn" onclick="toggleWeakWords()"
+                            style="display:none;padding:6px 12px;border:2px solid #ffcdd2;border-radius:20px;
+                                   background:white;color:#f44336;font-size:0.78rem;font-weight:700;
+                                   cursor:pointer;transition:all 0.2s;white-space:nowrap;">
+                        🔥 易错词
+                    </button>
                 </div>
             </div>
 
@@ -607,6 +619,23 @@
                 <button class="btn btn-primary" onclick="startPractice()">开始练习</button>
             </div>
         </div>
+
+        <!-- 易错词可视化面板（仅拼音练习显示） -->
+        <div id="weakWordsSection" style="background:white;border-radius:20px;padding:20px;
+             box-shadow:0 5px 20px rgba(0,0,0,0.08);margin-top:20px;display:none;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+                <div style="font-weight:800;font-size:1.05rem;color:#333;">
+                    🔥 我的易错词
+                    <span id="weakWordsCount" style="font-size:0.8rem;color:#888;font-weight:400;margin-left:6px;"></span>
+                </div>
+                <div style="display:flex;gap:8px;">
+                    <button class="btn btn-secondary btn-sm" onclick="resetPinyinStats()" style="font-size:0.78rem;padding:5px 12px;">🗑️ 清除记录</button>
+                </div>
+            </div>
+            <div id="weakWordsPanel">
+                <div style="color:#bbb;font-size:0.85rem;text-align:center;padding:12px;">暂无记录，开始练习后自动统计</div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -626,5 +655,38 @@
         })();
     </script>
     <script src="practice.js"></script>
+    <script>
+        // 切换易错词面板
+        function toggleWeakWords() {
+            const sec = document.getElementById('weakWordsSection');
+            const btn = document.getElementById('toggleWeakBtn');
+            const isHidden = sec.style.display === 'none';
+            sec.style.display = isHidden ? 'block' : 'none';
+            if (isHidden) {
+                sec.style.animation = 'fadeIn 0.3s ease';
+                renderWeakWordsPanel();
+                const list = getWeakWordsList(currentDifficulty);
+                const cnt = document.getElementById('weakWordsCount');
+                if (cnt) cnt.textContent = list.length > 0 ? `共 ${list.length} 个` : '';
+                btn.style.background = '#ffebee';
+            } else {
+                btn.style.background = 'white';
+            }
+        }
+
+        // 切换练习类型时控制面板可见性
+        const origInitTypeSelector = initTypeSelector;
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.type-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    const isPinyin = card.dataset.type === 'pinyin';
+                    const btn = document.getElementById('toggleWeakBtn');
+                    const sec = document.getElementById('weakWordsSection');
+                    if (btn) btn.style.display = isPinyin ? 'flex' : 'none';
+                    if (!isPinyin && sec) sec.style.display = 'none';
+                });
+            });
+        });
+    </script>
 </body>
 </html>

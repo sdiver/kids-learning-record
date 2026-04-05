@@ -60,10 +60,51 @@ const pinyinData = {
         { pinyin: 'yuè liang', correct: '月亮', wrongOptions: ['太阳', '地球'], tone: '4-0' },
         { pinyin: 'xīng xing', correct: '星星', wrongOptions: ['月亮', '云彩'], tone: '1-0' },
         { pinyin: 'tiān kōng', correct: '天空', wrongOptions: ['大海', '陆地'], tone: '1-1' },
-        { pinyin: 'dà dì', correct: '大地', wrongOptions: ['天空', '海洋'], tone: '4-4' }
+        { pinyin: 'dà dì', correct: '大地', wrongOptions: ['天空', '海洋'], tone: '4-4' },
+        // 颜色
+        { pinyin: 'hóng sè', correct: '红色', wrongOptions: ['橙色', '粉色'], tone: '2-4' },
+        { pinyin: 'lǜ sè', correct: '绿色', wrongOptions: ['蓝色', '青色'], tone: '4-4' },
+        { pinyin: 'lán sè', correct: '蓝色', wrongOptions: ['绿色', '紫色'], tone: '2-4' },
+        { pinyin: 'huáng sè', correct: '黄色', wrongOptions: ['橙色', '金色'], tone: '2-4' },
+        { pinyin: 'bái sè', correct: '白色', wrongOptions: ['灰色', '银色'], tone: '2-4' },
+        { pinyin: 'hēi sè', correct: '黑色', wrongOptions: ['深蓝', '深褐'], tone: '1-4' },
+        // 基础动词
+        { pinyin: 'chī fàn', correct: '吃饭', wrongOptions: ['喝水', '睡觉'], tone: '1-4' },
+        { pinyin: 'hē shuǐ', correct: '喝水', wrongOptions: ['吃饭', '喝茶'], tone: '1-3' },
+        { pinyin: 'shuì jiào', correct: '睡觉', wrongOptions: ['起床', '休息'], tone: '4-4' },
+        { pinyin: 'qǐ chuáng', correct: '起床', wrongOptions: ['睡觉', '躺下'], tone: '3-2' },
+        { pinyin: 'pǎo bù', correct: '跑步', wrongOptions: ['走路', '跳绳'], tone: '3-4' },
+        { pinyin: 'chàng gē', correct: '唱歌', wrongOptions: ['跳舞', '弹琴'], tone: '4-1' },
+        { pinyin: 'tiào wǔ', correct: '跳舞', wrongOptions: ['唱歌', '画画'], tone: '4-3' },
+        { pinyin: 'huà huà', correct: '画画', wrongOptions: ['写字', '剪纸'], tone: '4-4' },
+        { pinyin: 'xiě zì', correct: '写字', wrongOptions: ['画画', '读书'], tone: '3-4' },
+        { pinyin: 'dú shū', correct: '读书', wrongOptions: ['看报', '写字'], tone: '2-1' },
+        // 时间
+        { pinyin: 'jīn tiān', correct: '今天', wrongOptions: ['明天', '昨天'], tone: '1-1' },
+        { pinyin: 'míng tiān', correct: '明天', wrongOptions: ['今天', '后天'], tone: '2-1' },
+        { pinyin: 'zuó tiān', correct: '昨天', wrongOptions: ['前天', '今天'], tone: '2-1' },
+        { pinyin: 'zǎo shang', correct: '早上', wrongOptions: ['上午', '早晨'], tone: '3-0' },
+        { pinyin: 'wǎn shang', correct: '晚上', wrongOptions: ['夜里', '深夜'], tone: '3-0' },
+        { pinyin: 'zhōng wǔ', correct: '中午', wrongOptions: ['正午', '下午'], tone: '1-3' },
+        // 身体部位
+        { pinyin: 'yǎn jīng', correct: '眼睛', wrongOptions: ['眼皮', '眉毛'], tone: '3-1' },
+        { pinyin: 'bí zi', correct: '鼻子', wrongOptions: ['嘴巴', '耳朵'], tone: '2-0' },
+        { pinyin: 'zuǐ ba', correct: '嘴巴', wrongOptions: ['鼻子', '脸颊'], tone: '3-0' },
+        { pinyin: 'ěr duo', correct: '耳朵', wrongOptions: ['鼻子', '眼睛'], tone: '3-0' },
+        { pinyin: 'tóu fa', correct: '头发', wrongOptions: ['眉毛', '胡须'], tone: '2-0' },
+        // 基础交通
+        { pinyin: 'qì chē', correct: '汽车', wrongOptions: ['火车', '轮船'], tone: '4-1' },
+        { pinyin: 'huǒ chē', correct: '火车', wrongOptions: ['地铁', '公交'], tone: '3-1' },
+        { pinyin: 'fēi jī', correct: '飞机', wrongOptions: ['直升机', '热气球'], tone: '1-1' },
+        { pinyin: 'lún chuán', correct: '轮船', wrongOptions: ['帆船', '快艇'], tone: '2-2' },
+        // 天气
+        { pinyin: 'qíng tiān', correct: '晴天', wrongOptions: ['阴天', '雨天'], tone: '2-1' },
+        { pinyin: 'yīn tiān', correct: '阴天', wrongOptions: ['晴天', '多云'], tone: '1-1' },
+        { pinyin: 'xià yǔ', correct: '下雨', wrongOptions: ['下雪', '打雷'], tone: '4-3' },
+        { pinyin: 'xià xuě', correct: '下雪', wrongOptions: ['下雨', '冰雹'], tone: '4-3' },
+        { pinyin: 'guā fēng', correct: '刮风', wrongOptions: ['下雨', '打雷'], tone: '1-1' }
     ],
     medium: [
-        // 水果
         { pinyin: 'píng guǒ', correct: '苹果', wrongOptions: ['西瓜', '桃子'], tone: '2-3' },
         { pinyin: 'xiāng jiāo', correct: '香蕉', wrongOptions: ['黄瓜', '茄子'], tone: '1-1' },
         { pinyin: 'xī guā', correct: '西瓜', wrongOptions: ['南瓜', '冬瓜'], tone: '1-1' },
@@ -102,7 +143,41 @@ const pinyinData = {
         { pinyin: 'tóng xué', correct: '同学', wrongOptions: ['朋友', '伙伴'], tone: '2-2' },
         { pinyin: 'jiāo shì', correct: '教室', wrongOptions: ['办公室', '图书馆'], tone: '4-4' },
         { pinyin: 'cāo chǎng', correct: '操场', wrongOptions: ['体育馆', '游泳池'], tone: '1-3' },
-        { pinyin: 'tú shū guǎn', correct: '图书馆', wrongOptions: ['博物馆', '美术馆'], tone: '2-1-3' }
+        { pinyin: 'tú shū guǎn', correct: '图书馆', wrongOptions: ['博物馆', '美术馆'], tone: '2-1-3' },
+        // 蔬菜
+        { pinyin: 'bái cài', correct: '白菜', wrongOptions: ['青菜', '菠菜'], tone: '2-4' },
+        { pinyin: 'luó bo', correct: '萝卜', wrongOptions: ['土豆', '红薯'], tone: '2-0' },
+        { pinyin: 'huáng guā', correct: '黄瓜', wrongOptions: ['南瓜', '冬瓜'], tone: '2-1' },
+        { pinyin: 'xī hóng shì', correct: '西红柿', wrongOptions: ['圣女果', '草莓'], tone: '1-2-4' },
+        { pinyin: 'tǔ dòu', correct: '土豆', wrongOptions: ['红薯', '芋头'], tone: '3-4' },
+        { pinyin: 'dòu fu', correct: '豆腐', wrongOptions: ['豆芽', '豆浆'], tone: '4-0' },
+        // 运动
+        { pinyin: 'yóu yǒng', correct: '游泳', wrongOptions: ['潜水', '划船'], tone: '2-3' },
+        { pinyin: 'páo bù', correct: '跑步', wrongOptions: ['走路', '散步'], tone: '3-4' },
+        { pinyin: 'tiào shéng', correct: '跳绳', wrongOptions: ['跳绳', '踢毽'], tone: '4-2' },
+        { pinyin: 'dǎ lán qiú', correct: '打篮球', wrongOptions: ['踢足球', '打排球'], tone: '3-2-2' },
+        { pinyin: 'xià qí', correct: '下棋', wrongOptions: ['打牌', '玩游戏'], tone: '4-2' },
+        // 衣物
+        { pinyin: 'chèn shān', correct: '衬衫', wrongOptions: ['毛衣', '外套'], tone: '4-1' },
+        { pinyin: 'kù zi', correct: '裤子', wrongOptions: ['裙子', '短裤'], tone: '4-0' },
+        { pinyin: 'qún zi', correct: '裙子', wrongOptions: ['裤子', '衬衫'], tone: '2-0' },
+        { pinyin: 'wà zi', correct: '袜子', wrongOptions: ['鞋子', '手套'], tone: '4-0' },
+        { pinyin: 'mào zi', correct: '帽子', wrongOptions: ['围巾', '手套'], tone: '4-0' },
+        // 情感
+        { pinyin: 'kāi xīn', correct: '开心', wrongOptions: ['高兴', '快乐'], tone: '1-1' },
+        { pinyin: 'nán guò', correct: '难过', wrongOptions: ['伤心', '哭泣'], tone: '2-4' },
+        { pinyin: 'hài pà', correct: '害怕', wrongOptions: ['担心', '紧张'], tone: '4-4' },
+        { pinyin: 'shēng qì', correct: '生气', wrongOptions: ['发怒', '烦恼'], tone: '1-4' },
+        { pinyin: 'dān xīn', correct: '担心', wrongOptions: ['害怕', '忧愁'], tone: '1-1' },
+        // 交通
+        { pinyin: 'dì tiě', correct: '地铁', wrongOptions: ['公交车', '轻轨'], tone: '4-3' },
+        { pinyin: 'gōng jiāo chē', correct: '公交车', wrongOptions: ['出租车', '私家车'], tone: '1-1-1' },
+        { pinyin: 'zì xíng chē', correct: '自行车', wrongOptions: ['摩托车', '三轮车'], tone: '4-2-1' },
+        // 场所
+        { pinyin: 'chāo shì', correct: '超市', wrongOptions: ['商场', '便利店'], tone: '1-4' },
+        { pinyin: 'gōng yuán', correct: '公园', wrongOptions: ['植物园', '动物园'], tone: '1-2' },
+        { pinyin: 'diàn yǐng yuàn', correct: '电影院', wrongOptions: ['剧场', '音乐厅'], tone: '4-3-4' },
+        { pinyin: 'cān tīng', correct: '餐厅', wrongOptions: ['食堂', '饭馆'], tone: '1-1' }
     ],
     hard: [
         // 昆虫/小动物
@@ -137,11 +212,33 @@ const pinyinData = {
         { pinyin: 'shàng hǎi', correct: '上海', wrongOptions: ['南京', '杭州'], tone: '4-3' },
         { pinyin: 'xiāng gǎng', correct: '香港', wrongOptions: ['澳门', '深圳'], tone: '1-3' },
         { pinyin: 'tái wān', correct: '台湾', wrongOptions: ['海南', '琉球'], tone: '2-1' },
-        // 成语/四字词
-        { pinyin: 'yī èr sān', correct: '一二三', wrongOptions: ['四五六', '七八九'], tone: '1-4-1' },
+        // 成语
+        { pinyin: 'yī míng jīng rén', correct: '一鸣惊人', wrongOptions: ['一飞冲天', '一步登天'], tone: '1-2-1-2' },
+        { pinyin: 'bàn tú ér fèi', correct: '半途而废', wrongOptions: ['坚持不懈', '有始有终'], tone: '4-2-2-4' },
+        { pinyin: 'shǒu zhū dài tù', correct: '守株待兔', wrongOptions: ['掩耳盗铃', '亡羊补牢'], tone: '3-1-4-4' },
+        { pinyin: 'huà shé tiān zú', correct: '画蛇添足', wrongOptions: ['多此一举', '弄巧成拙'], tone: '4-2-1-2' },
+        { pinyin: 'yǎn ěr dào líng', correct: '掩耳盗铃', wrongOptions: ['自欺欺人', '睁眼说瞎话'], tone: '3-3-4-2' },
+        { pinyin: 'wáng yáng bǔ láo', correct: '亡羊补牢', wrongOptions: ['亡羊补牢', '悬崖勒马'], tone: '2-2-3-2' },
+        { pinyin: 'māo zhāo hǔ wēi', correct: '狐假虎威', wrongOptions: ['鸡鸣狗盗', '狗仗人势'], tone: '2-3-3-1' },
+        // 品质/美德
+        { pinyin: 'qiān xū', correct: '谦虚', wrongOptions: ['自满', '骄傲'], tone: '1-1' },
+        { pinyin: 'kāng kǎi', correct: '慷慨', wrongOptions: ['吝啬', '小气'], tone: '1-3' },
+        { pinyin: 'rè qíng', correct: '热情', wrongOptions: ['冷漠', '无情'], tone: '4-2' },
+        { pinyin: 'jī zhì', correct: '机智', wrongOptions: ['鲁莽', '冒失'], tone: '1-4' },
+        { pinyin: 'qín láo', correct: '勤劳', wrongOptions: ['懒惰', '懈怠'], tone: '2-2' },
+        { pinyin: 'jié jiǎn', correct: '节俭', wrongOptions: ['浪费', '奢侈'], tone: '2-3' },
+        // 自然现象
+        { pinyin: 'léi diàn', correct: '雷电', wrongOptions: ['暴风', '冰雹'], tone: '2-4' },
+        { pinyin: 'bào fēng xuě', correct: '暴风雪', wrongOptions: ['暴风雨', '台风'], tone: '4-1-3' },
+        { pinyin: 'dì zhèn', correct: '地震', wrongOptions: ['海啸', '火山'], tone: '4-4' },
+        { pinyin: 'huǒ shān', correct: '火山', wrongOptions: ['地震', '泥石流'], tone: '3-1' },
+        // 四字词
         { pinyin: 'xīn nián kuài lè', correct: '新年快乐', wrongOptions: ['生日快乐', '节日快乐'], tone: '1-2-4-4' },
         { pinyin: 'wàn shì rú yì', correct: '万事如意', wrongOptions: ['心想事成', '一帆风顺'], tone: '4-4-2-4' },
-        { pinyin: 'shēn tǐ jiàn kāng', correct: '身体健康', wrongOptions: ['万事如意', '心想事成'], tone: '1-3-4-1' }
+        { pinyin: 'shēn tǐ jiàn kāng', correct: '身体健康', wrongOptions: ['万事如意', '心想事成'], tone: '1-3-4-1' },
+        { pinyin: 'xué hǎi wú yá', correct: '学海无涯', wrongOptions: ['知识无限', '博大精深'], tone: '2-3-2-2' },
+        { pinyin: 'tiān gāo dì kuò', correct: '天高地阔', wrongOptions: ['天长地久', '地大物博'], tone: '1-1-4-4' },
+        { pinyin: 'bǎi nián shù rén', correct: '百年树人', wrongOptions: ['十年树木', '百折不挠'], tone: '3-2-4-2' }
     ]
 };
 
@@ -151,6 +248,82 @@ const commonChars = {
     medium: ['春', '夏', '秋', '冬', '东', '西', '南', '北', '花', '草', '树', '叶', '鸟', '虫', '云', '雨', '雪', '风', '电', '光', '书', '笔', '纸', '墨', '门', '窗', '桌', '椅', '床', '柜'],
     hard: ['梦', '想', '勇', '敢', '智', '慧', '快', '乐', '友', '谊', '诚', '实', '坚', '持', '感', '恩', '自', '信', '尊', '重', '团', '结', '帮', '助', '分', '享', '礼', '貌', '文', '明']
 };
+
+// ==================== 拼音错题统计（localStorage 持久化）====================
+
+const PINYIN_STATS_KEY = 'pinyinQuestionStats_v2';
+
+function getPinyinStats() {
+    try { return JSON.parse(localStorage.getItem(PINYIN_STATS_KEY) || '{}'); }
+    catch(e) { return {}; }
+}
+
+function savePinyinStats(stats) {
+    try { localStorage.setItem(PINYIN_STATS_KEY, JSON.stringify(stats)); } catch(e) {}
+}
+
+/** 记录一次答题结果 */
+function recordPinyinResult(pinyin, correct, isCorrect) {
+    const stats = getPinyinStats();
+    if (!stats[correct]) stats[correct] = { pinyin, wrong: 0, total: 0, lastWrong: 0 };
+    stats[correct].pinyin = pinyin;
+    stats[correct].total++;
+    if (!isCorrect) {
+        stats[correct].wrong++;
+        stats[correct].lastWrong = Date.now();
+    }
+    savePinyinStats(stats);
+}
+
+/** 加权随机选题：错得多的题出现概率更高 */
+function weightedSelectPinyinQuestion(difficulty) {
+    const stats = getPinyinStats();
+    const questions = pinyinData[difficulty];
+    const WEEK = 7 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    const weights = questions.map(q => {
+        const s = stats[q.correct];
+        let w = 1;
+        if (s && s.total > 0) {
+            w += s.wrong * 2;                                           // 每错一次 +2
+            if (s.lastWrong && now - s.lastWrong < WEEK) w += 3;       // 近7天错过 +3
+            if (s.wrong / s.total > 0.5) w += 2;                       // 错误率 >50% 再加
+        }
+        return w;
+    });
+
+    const total = weights.reduce((a, b) => a + b, 0);
+    let r = Math.random() * total;
+    for (let i = 0; i < questions.length; i++) {
+        r -= weights[i];
+        if (r <= 0) return questions[i];
+    }
+    return questions[questions.length - 1];
+}
+
+/** 获取当前难度错误率最高的词（Top N） */
+function getWeakWordsList(difficulty, topN = 10) {
+    const stats = getPinyinStats();
+    return pinyinData[difficulty]
+        .filter(q => stats[q.correct] && stats[q.correct].wrong > 0)
+        .map(q => ({ ...q, ...stats[q.correct] }))
+        .sort((a, b) => (b.wrong / Math.max(b.total, 1)) - (a.wrong / Math.max(a.total, 1)))
+        .slice(0, topN);
+}
+
+/** 清除拼音统计 */
+function resetPinyinStats() {
+    localStorage.removeItem(PINYIN_STATS_KEY);
+    renderWeakWordsPanel();
+    const t = document.createElement('div');
+    t.style.cssText = `position:fixed;top:80px;left:50%;transform:translateX(-50%);
+        padding:12px 24px;border-radius:12px;font-weight:700;z-index:9999;
+        background:#4CAF50;color:white;box-shadow:0 4px 15px rgba(0,0,0,0.2);`;
+    t.textContent = '✅ 已清除统计记录';
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 1800);
+}
 
 // 数学口算题库
 const mathData = {
@@ -579,10 +752,8 @@ let pinyinSelectedBtn = null;
 
 // 生成拼音题 - 干净界面：只显示拼音+选项
 function generatePinyinQuestion() {
-    // 获取当前难度的题库
-    const questions = pinyinData[currentDifficulty];
-    // 随机选择一题
-    const baseQuestion = questions[Math.floor(Math.random() * questions.length)];
+    // 加权随机选题（常错词出现概率更高）
+    const baseQuestion = weightedSelectPinyinQuestion(currentDifficulty);
 
     // 构建4个选项（1个正确+3个差异化干扰项）
     const options = generatePinyinOptions(baseQuestion);
@@ -699,6 +870,8 @@ function confirmPinyinAnswer() {
     isAnswered = true;
 
     const isCorrect = pinyinSelectedAnswer === currentQuestion.correct;
+    // 记录答题结果到统计
+    recordPinyinResult(currentQuestion.pinyin, currentQuestion.correct, isCorrect);
 
     // 显示结果
     if (isCorrect) {
@@ -997,8 +1170,70 @@ function showResult() {
         <small>答对 ${correctCount} 题，答错 ${wrongCount} 题</small>
     `;
 
+    // 拼音练习：刷新易错词面板 + 结果页显示重点词
+    if (currentType === 'pinyin') {
+        renderWeakWordsPanel();
+        renderResultWeakWords();
+    }
+
     // 保存练习记录到服务器
     savePracticeRecord(score);
+}
+
+/** 渲染侧边/下方「我的易错词」面板 */
+function renderWeakWordsPanel() {
+    const panel = document.getElementById('weakWordsPanel');
+    if (!panel) return;
+    const list = getWeakWordsList(currentDifficulty);
+    if (list.length === 0) {
+        panel.innerHTML = '<div style="color:#bbb;font-size:0.85rem;text-align:center;padding:12px;">暂无记录，开始练习后自动统计</div>';
+        return;
+    }
+    panel.innerHTML = list.map(item => {
+        const rate = Math.round(item.wrong / item.total * 100);
+        const col = rate >= 70 ? '#f44336' : rate >= 40 ? '#FF9800' : '#667eea';
+        const heatLevel = rate >= 70 ? '🔥' : rate >= 40 ? '⚠️' : '📌';
+        return `
+        <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f5f5f5;">
+            <div style="font-size:1.5rem;font-weight:800;color:${col};min-width:44px;text-align:center;">${item.correct}</div>
+            <div style="flex:1;min-width:0;">
+                <div style="font-size:0.78rem;color:#667eea;margin-bottom:3px;">${item.pinyin}</div>
+                <div style="background:#f0f0f0;border-radius:4px;height:5px;">
+                    <div style="height:100%;border-radius:4px;background:${col};width:${rate}%;transition:width 0.6s;"></div>
+                </div>
+            </div>
+            <div style="font-size:0.72rem;color:${col};font-weight:700;text-align:right;white-space:nowrap;">
+                ${heatLevel} ${item.wrong}/${item.total}<br>错${rate}%
+            </div>
+        </div>`;
+    }).join('');
+}
+
+/** 练习结果页：展示本次最需重点攻克的词 */
+function renderResultWeakWords() {
+    const resultArea = document.getElementById('resultArea');
+    if (!resultArea) return;
+    document.getElementById('resultWeakWords')?.remove();
+    const list = getWeakWordsList(currentDifficulty, 6);
+    if (list.length === 0) return;
+    const div = document.createElement('div');
+    div.id = 'resultWeakWords';
+    div.style.cssText = 'margin-top:16px;background:#fff5f5;border-radius:14px;padding:14px 16px;text-align:left;';
+    div.innerHTML = `
+        <div style="font-weight:800;color:#f44336;margin-bottom:10px;font-size:0.95rem;">🔥 重点攻克（累计错误率最高）</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+            ${list.map(item => {
+                const rate = Math.round(item.wrong / item.total * 100);
+                const col = rate >= 70 ? '#f44336' : '#FF9800';
+                return `<div style="background:white;border:2px solid ${col};border-radius:10px;padding:6px 12px;text-align:center;">
+                    <div style="font-size:1.3rem;font-weight:800;color:${col};">${item.correct}</div>
+                    <div style="font-size:0.7rem;color:#888;">${item.pinyin}</div>
+                    <div style="font-size:0.68rem;color:${col};font-weight:700;">错${rate}%</div>
+                </div>`;
+            }).join('')}
+        </div>
+    `;
+    resultArea.appendChild(div);
 }
 
 // ==================== 专项识字（A2）====================
