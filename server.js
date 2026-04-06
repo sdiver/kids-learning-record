@@ -1149,7 +1149,7 @@ apiRouter.get('/diagnosis/:kid_id', (req, res) => {
 
     const q2 = new Promise((resolve, reject) => {
         db.all(
-            `SELECT s.name as subject, s.icon, s.color,
+            `SELECT s.name, s.icon, s.color,
                     COUNT(lr.id) as record_count,
                     ROUND(AVG(lr.performance), 1) as avg_perf,
                     COALESCE(SUM(lr.duration), 0) as total_min
