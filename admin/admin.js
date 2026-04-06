@@ -120,6 +120,9 @@ function switchPage(page) {
         case 'points':
             loadPoints();
             break;
+        case 'articles':
+            loadArticles();
+            break;
         case 'ai-settings':
             loadAISettings();
             break;
@@ -965,30 +968,39 @@ async function loadAISettings() {
 
         const cfg = data.data;
 
-        // 设置激活的 provider
         const sel = document.getElementById('ai_active_provider');
         if (sel) sel.value = cfg.active_provider || '';
 
-        // 渲染各 provider 的 key 输入框
         const container = document.getElementById('aiKeyFields');
-        if (!container) return;
-
-        container.innerHTML = AI_PROVIDERS.map(p => `
-            <div class="form-group" style="margin-bottom:18px;">
-                <label class="form-label" style="display:flex;justify-content:space-between;align-items:center;">
-                    <span>${p.label}</span>
-                    <span style="font-size:0.8rem;color:#888;font-weight:400;">${p.hint}</span>
-                </label>
-                <div style="display:flex;gap:8px;align-items:center;">
-                    <input type="password" class="form-input" id="ai_${p.key}"
-                        placeholder="${cfg[p.key.replace('_api_key','_set')] ? '已配置（输入新值可覆盖）' : p.placeholder}"
-                        autocomplete="off" style="flex:1;">
-                    <span style="font-size:1.2rem;" title="${cfg[p.key.replace('_api_key','_set')] ? '已配置' : '未配置'}">
-                        ${cfg[p.key.replace('_api_key','_set')] ? '✅' : '⬜'}
-                    </span>
+        if (container) {
+            container.innerHTML = AI_PROVIDERS.map(p => `
+                <div class="form-group" style="margin-bottom:18px;">
+                    <label class="form-label" style="display:flex;justify-content:space-between;align-items:center;">
+                        <span>${p.label}</span>
+                        <span style="font-size:0.8rem;color:#888;font-weight:400;">${p.hint}</span>
+                    </label>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <input type="password" class="form-input" id="ai_${p.key}"
+                            placeholder="${cfg[p.key.replace('_api_key','_set')] ? '已配置（输入新值可覆盖）' : p.placeholder}"
+                            autocomplete="off" style="flex:1;">
+                        <span style="font-size:1.2rem;" title="${cfg[p.key.replace('_api_key','_set')] ? '已配置' : '未配置'}">
+                            ${cfg[p.key.replace('_api_key','_set')] ? '✅' : '⬜'}
+                        </span>
+                    </div>
                 </div>
-            </div>
-        `).join('');
+            `).join('');
+        }
+
+        // 百度OCR状态
+        const baiduStatus = document.getElementById('baiduOcrStatus');
+        if (baiduStatus) {
+            baiduStatus.textContent = cfg.baidu_ocr_set ? '✅ 已配置' : '⬜ 未配置';
+            baiduStatus.style.color = cfg.baidu_ocr_set ? '#4CAF50' : '#888';
+        }
+
+        // 字数上限
+        const maxLenEl = document.getElementById('article_max_length');
+        if (maxLenEl) maxLenEl.value = cfg.article_max_length || 2000;
 
     } catch (e) {
         showToast('加载AI配置失败: ' + e.message, 'error');
@@ -1004,6 +1016,16 @@ async function saveAISettings() {
         if (val) body[p.key] = val;
     });
 
+    // 百度OCR
+    ['baidu_ocr_app_id', 'baidu_ocr_api_key', 'baidu_ocr_secret_key'].forEach(k => {
+        const val = document.getElementById(k)?.value?.trim();
+        if (val) body[k] = val;
+    });
+
+    // 字数上限
+    const maxLen = document.getElementById('article_max_length')?.value;
+    if (maxLen) body.article_max_length = parseInt(maxLen);
+
     const statusEl = document.getElementById('aiSaveStatus');
     if (statusEl) statusEl.textContent = '保存中...';
 
@@ -1016,13 +1038,16 @@ async function saveAISettings() {
         const data = await res.json();
         if (!data.success) throw new Error(data.message);
 
-        showToast('AI配置已保存！', 'success');
+        showToast('配置已保存！', 'success');
         if (statusEl) statusEl.textContent = '✅ 已保存';
         setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 3000);
 
-        // 清空输入框并刷新状态
         AI_PROVIDERS.forEach(p => {
             const el = document.getElementById(`ai_${p.key}`);
+            if (el) el.value = '';
+        });
+        ['baidu_ocr_app_id', 'baidu_ocr_api_key', 'baidu_ocr_secret_key'].forEach(k => {
+            const el = document.getElementById(k);
             if (el) el.value = '';
         });
         loadAISettings();
@@ -1030,5 +1055,109 @@ async function saveAISettings() {
     } catch (e) {
         showToast('保存失败: ' + e.message, 'error');
         if (statusEl) statusEl.textContent = '❌ 保存失败';
+    }
+}
+
+// ==================== 文章管理 ====================
+
+let articleMaxLength = 2000;
+
+async function loadArticles() {
+    try {
+        const [articlesRes, maxLenRes] = await Promise.all([
+            fetch(`${API_BASE}/articles/custom`),
+            fetch(`${API_BASE}/config/article-max-length`)
+        ]);
+        const articlesData = await articlesRes.json();
+        const maxLenData = await maxLenRes.json();
+        if (maxLenData.success) articleMaxLength = maxLenData.data;
+
+        const tbody = document.getElementById('articlesTableBody');
+        if (!tbody) return;
+
+        if (!articlesData.success || !articlesData.data.length) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#999;padding:30px;">暂无文章，点击「新增文章」添加</td></tr>';
+            return;
+        }
+
+        const levelMap = { easy: '⭐ 简单', medium: '⭐⭐ 中等', hard: '⭐⭐⭐ 困难' };
+        tbody.innerHTML = articlesData.data.map(a => `
+            <tr>
+                <td><strong>${escapeHtml(a.title)}</strong></td>
+                <td>${escapeHtml(a.author || '—')}</td>
+                <td>${levelMap[a.level] || a.level}</td>
+                <td>${a.content.length} 字</td>
+                <td>${a.created_at ? a.created_at.slice(0, 10) : '—'}</td>
+                <td>
+                    <button class="btn btn-secondary" style="padding:6px 12px;font-size:0.82rem;margin-right:6px;" onclick="showArticleModal(${JSON.stringify(a).replace(/"/g, '&quot;')})">编辑</button>
+                    <button class="btn" style="padding:6px 12px;font-size:0.82rem;background:#ff6b6b;color:white;border-radius:8px;" onclick="deleteArticle(${a.id}, '${escapeHtml(a.title)}')">删除</button>
+                </td>
+            </tr>
+        `).join('');
+    } catch (e) {
+        showToast('加载文章失败: ' + e.message, 'error');
+    }
+}
+
+function escapeHtml(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showArticleModal(article) {
+    document.getElementById('articleModalTitle').textContent = article ? '编辑文章' : '新增文章';
+    document.getElementById('articleId').value = article ? article.id : '';
+    document.getElementById('articleTitle').value = article ? article.title : '';
+    document.getElementById('articleAuthor').value = article ? (article.author || '') : '';
+    document.getElementById('articleLevel').value = article ? article.level : 'medium';
+    document.getElementById('articleContent').value = article ? article.content : '';
+    updateArticleCharCount();
+    document.getElementById('articleModal').classList.add('active');
+}
+
+function updateArticleCharCount() {
+    const content = document.getElementById('articleContent')?.value || '';
+    const el = document.getElementById('articleCharCount');
+    if (el) {
+        el.textContent = `（${content.length} / ${articleMaxLength} 字）`;
+        el.style.color = content.length > articleMaxLength ? '#e53935' : '#888';
+    }
+}
+
+async function saveArticle() {
+    const id = document.getElementById('articleId').value;
+    const title = document.getElementById('articleTitle').value.trim();
+    const author = document.getElementById('articleAuthor').value.trim();
+    const level = document.getElementById('articleLevel').value;
+    const content = document.getElementById('articleContent').value.trim();
+
+    if (!title || !content) return showToast('标题和内容不能为空', 'error');
+    if (content.length > articleMaxLength) return showToast(`内容超过上限 ${articleMaxLength} 字`, 'error');
+
+    await withSubmitLock('saveArticle', async () => {
+        const url = id ? `${API_BASE}/articles/custom/${id}` : `${API_BASE}/articles/custom`;
+        const method = id ? 'PUT' : 'POST';
+        const res = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title, author, content, level })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message);
+        showToast(id ? '文章已更新' : '文章已添加', 'success');
+        closeModal('articleModal');
+        loadArticles();
+    });
+}
+
+async function deleteArticle(id, title) {
+    if (!confirm(`确认删除文章「${title}」？此操作不可撤销。`)) return;
+    try {
+        const res = await fetch(`${API_BASE}/articles/custom/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message);
+        showToast('文章已删除', 'success');
+        loadArticles();
+    } catch (e) {
+        showToast('删除失败: ' + e.message, 'error');
     }
 }

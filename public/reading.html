@@ -815,7 +815,7 @@
             }
         })();
 
-        // 处理拍照导入
+        // 处理拍照导入（调用后端百度OCR）
         async function handlePhotoImport(input) {
             const file = input.files[0];
             if (!file) return;
@@ -824,75 +824,50 @@
             const contentTextarea = document.getElementById('newArticleContent');
 
             ocrStatus.style.display = 'block';
+            ocrStatus.style.background = '#E3F2FD';
+            ocrStatus.style.color = '#1565c0';
             ocrStatus.innerHTML = '🔍 正在识别文字...';
 
             try {
-                // 检查是否支持OCR
-                if (typeof Tesseract === 'undefined') {
-                    // 动态加载Tesseract.js
-                    await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js');
-                }
+                // 读取图片为 base64
+                const imageBase64 = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = e => resolve(e.target.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
 
-                const result = await Tesseract.recognize(
-                    file,
-                    'chi_sim+eng',
-                    {
-                        logger: m => {
-                            if (m.status === 'recognizing text') {
-                                ocrStatus.innerHTML = `🔍 正在识别... ${Math.round(m.progress * 100)}%`;
-                            }
-                        }
-                    }
-                );
+                const res = await fetch(`${API_BASE}/ocr/baidu`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ imageBase64 })
+                });
+                const data = await res.json();
+                if (!data.success) throw new Error(data.message);
 
-                // 清理识别结果
-                let text = result.data.text
-                    .replace(/\s+/g, '') // 去除空格
-                    .replace(/[^\u4e00-\u9fa5a-zA-Z0-9\uff00-\uffef.,!?。，！？、：；""''（）【】]/g, ''); // 保留中英文和常见标点
+                const text = data.data
+                    .replace(/\r\n|\r|\n/g, '')
+                    .replace(/[^\u4e00-\u9fa5a-zA-Z0-9\uff00-\uffef.,!?。，！？、：；""''（）【】]/g, '');
 
-                // 将识别结果添加到文本框
-                if (contentTextarea.value) {
-                    contentTextarea.value += '\n' + text;
-                } else {
-                    contentTextarea.value = text;
-                }
-
-                // 更新字数统计
+                contentTextarea.value = contentTextarea.value ? contentTextarea.value + text : text;
                 document.getElementById('charCount').textContent = contentTextarea.value.length;
 
                 ocrStatus.innerHTML = '✅ 识别完成！';
                 ocrStatus.style.background = '#E8F5E9';
                 ocrStatus.style.color = '#2e7d32';
-
-                setTimeout(() => {
-                    ocrStatus.style.display = 'none';
-                }, 2000);
+                setTimeout(() => { ocrStatus.style.display = 'none'; }, 2000);
 
             } catch (error) {
                 console.error('OCR识别失败:', error);
-                ocrStatus.innerHTML = '❌ 识别失败，请手动输入';
+                ocrStatus.innerHTML = '❌ ' + (error.message || '识别失败，请手动输入');
                 ocrStatus.style.background = '#FFEBEE';
                 ocrStatus.style.color = '#c62828';
-
-                // 如果OCR失败，至少显示图片内容提示
-                alert('拍照识别需要网络加载识别库，请检查网络连接或手动输入文字');
             }
 
-            // 清空input以便可以再次选择同一文件
             input.value = '';
-        }
-
-        // 动态加载脚本
-        function loadScript(src) {
-            return new Promise((resolve, reject) => {
-                const script = document.createElement('script');
-                script.src = src;
-                script.onload = resolve;
-                script.onerror = () => reject(new Error(`无法加载: ${src}`));
-                document.head.appendChild(script);
-            });
         }
     </script>
     <script src="reading.js"></script>
+    <script src="zhouyu.js"></script>
 </body>
 </html>

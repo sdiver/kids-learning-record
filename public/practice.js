@@ -969,10 +969,12 @@ function confirmPinyinAnswer() {
         if (streakCount >= 3) {
             showStreakMessage();
         }
+        if (window.ZhouYu) ZhouYu.praise();
     } else {
         pinyinSelectedBtn.classList.add('wrong');
         wrongCount++;
         streakCount = 0;
+        if (window.ZhouYu) ZhouYu.encourage();
         // 答错：权重增加，下次更容易出现
         pinyinWrongWeights[weightKey] = (pinyinWrongWeights[weightKey] || 0) + 3;
         savePinyinWeights();
@@ -1159,6 +1161,7 @@ function handleAnswer(isCorrect, btn, userAnswer) {
         if (streakCount >= 3) {
             showStreakMessage();
         }
+        if (window.ZhouYu) ZhouYu.praise();
     } else {
         wrongCount++;
         streakCount = 0;
@@ -1172,6 +1175,7 @@ function handleAnswer(isCorrect, btn, userAnswer) {
                 </div>
             `;
         }
+        if (window.ZhouYu) ZhouYu.encourage();
     }
 
     updateStats();

@@ -1101,6 +1101,9 @@ function markCorrect(index) {
 
     // 显示拼音提示
     showPinyinPopup(char.dataset.char);
+
+    // 每5个正确字夸一次，避免过于频繁
+    if (correctCount % 5 === 0 && window.ZhouYu) ZhouYu.readingCorrect();
 }
 
 // 标记错误
@@ -1115,6 +1118,7 @@ function markWrong(index, recognized) {
     char.classList.remove('current');
     char.classList.add('wrong');
     wrongCount++;
+    if (window.ZhouYu) ZhouYu.readingWrong();
 
     // 记录错误（漏读'—'不进自我纠正窗口）
     errorWords.push({ expected, recognized: recognized || '未识别', pinyin: localPinyinDict[expected] || '' });

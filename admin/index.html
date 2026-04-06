@@ -918,6 +918,9 @@
             <div class="nav-item" data-page="points">
                 <span>💎</span> 积分记录
             </div>
+            <div class="nav-item" data-page="articles">
+                <span>📄</span> 文章管理
+            </div>
             <div class="nav-item" data-page="ai-settings">
                 <span>🤖</span> AI 设置
             </div>
@@ -1167,6 +1170,33 @@
             </div>
         </div>
 
+        <!-- 文章管理页面 -->
+        <div id="page-articles" class="page hidden">
+            <div class="header">
+                <h2>📄 阅读文章管理</h2>
+                <div class="header-actions">
+                    <button class="btn btn-primary" onclick="showArticleModal()">+ 新增文章</button>
+                </div>
+            </div>
+            <div class="card">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>标题</th>
+                            <th>作者</th>
+                            <th>难度</th>
+                            <th>字数</th>
+                            <th>创建时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="articlesTableBody">
+                        <tr><td colspan="6" style="text-align:center;color:#999;">加载中...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <!-- AI 设置页面 -->
         <div id="page-ai-settings" class="page hidden">
             <div class="header">
@@ -1200,6 +1230,42 @@
                     <!-- 动态生成 -->
                 </div>
 
+                <hr style="margin:20px 0;border-color:#eee;">
+
+                <!-- 百度OCR配置 -->
+                <div style="margin-bottom:8px;">
+                    <label class="form-label" style="display:flex;justify-content:space-between;align-items:center;">
+                        <span>🔍 百度OCR（拍照识别文章）</span>
+                        <span id="baiduOcrStatus" style="font-size:0.8rem;color:#888;font-weight:400;">检测中...</span>
+                    </label>
+                    <p style="font-size:0.82rem;color:#888;margin-bottom:12px;">
+                        前往 <a href="https://console.bce.baidu.com/ai/#/ai/ocr/app/list" target="_blank">百度AI开放平台</a> 创建应用，每天免费 500 次。
+                    </p>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">App ID</label>
+                    <input type="text" class="form-input" id="baidu_ocr_app_id" placeholder="已配置则留空保留" autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">API Key</label>
+                    <input type="password" class="form-input" id="baidu_ocr_api_key" placeholder="已配置则留空保留" autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Secret Key</label>
+                    <input type="password" class="form-input" id="baidu_ocr_secret_key" placeholder="已配置则留空保留" autocomplete="off">
+                </div>
+
+                <hr style="margin:20px 0;border-color:#eee;">
+
+                <!-- 文章字数上限 -->
+                <div class="form-group">
+                    <label class="form-label" style="display:flex;justify-content:space-between;">
+                        <span>📝 文章字数上限</span>
+                        <span style="font-size:0.8rem;color:#888;font-weight:400;">100 ~ 10000，默认 2000</span>
+                    </label>
+                    <input type="number" class="form-input" id="article_max_length" min="100" max="10000" placeholder="2000" style="max-width:160px;">
+                </div>
+
                 <div style="margin-top:25px;display:flex;gap:12px;align-items:center;">
                     <button class="btn btn-primary" onclick="saveAISettings()">💾 保存配置</button>
                     <button class="btn btn-secondary" onclick="loadAISettings()">🔄 刷新</button>
@@ -1213,6 +1279,38 @@
                     • <strong>Gemini</strong>：<a href="https://aistudio.google.com" target="_blank">aistudio.google.com</a> 注册，每天 1500 次免费<br>
                     • <strong>DeepSeek</strong>：<a href="https://platform.deepseek.com" target="_blank">platform.deepseek.com</a> 注册送 500 万 token
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 文章新增/编辑模态框 -->
+    <div class="modal" id="articleModal">
+        <div class="modal-content" style="max-width:620px;">
+            <h3 class="modal-title" id="articleModalTitle">新增文章</h3>
+            <input type="hidden" id="articleId">
+            <div class="form-group">
+                <label class="form-label">标题 *</label>
+                <input type="text" class="form-input" id="articleTitle" placeholder="例如：小猫钓鱼">
+            </div>
+            <div class="form-group">
+                <label class="form-label">作者（可选）</label>
+                <input type="text" class="form-input" id="articleAuthor" placeholder="例如：佚名">
+            </div>
+            <div class="form-group">
+                <label class="form-label">难度</label>
+                <select class="form-select" id="articleLevel">
+                    <option value="easy">⭐ 简单（儿歌、古诗）</option>
+                    <option value="medium" selected>⭐⭐ 中等（短文）</option>
+                    <option value="hard">⭐⭐⭐ 困难（长文）</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">内容 * <span id="articleCharCount" style="font-weight:400;color:#888;font-size:0.85rem;"></span></label>
+                <textarea class="form-textarea" id="articleContent" rows="8" placeholder="粘贴或输入文章内容" oninput="updateArticleCharCount()"></textarea>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-secondary" onclick="closeModal('articleModal')">取消</button>
+                <button class="btn btn-primary" onclick="saveArticle()">保存</button>
             </div>
         </div>
     </div>

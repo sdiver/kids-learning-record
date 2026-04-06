@@ -282,14 +282,24 @@ apiRouter.get('/articles/custom', (req, res) => {
     });
 });
 
+// 获取文章字数上限
+function getArticleMaxLength() {
+    return new Promise((resolve) => {
+        db.get("SELECT value FROM settings WHERE key = 'article_max_length'", (err, row) => {
+            resolve(row ? parseInt(row.value) || 2000 : 2000);
+        });
+    });
+}
+
 // 添加自定义文章
-apiRouter.post('/articles/custom', (req, res) => {
+apiRouter.post('/articles/custom', async (req, res) => {
     const { title, author, content, level } = req.body;
     if (!title || !content) {
         return res.status(400).json({ success: false, message: '标题和内容不能为空' });
     }
-    if (content.length > 2000) {
-        return res.status(400).json({ success: false, message: '文章内容不能超过2000字' });
+    const maxLen = await getArticleMaxLength();
+    if (content.length > maxLen) {
+        return res.status(400).json({ success: false, message: `文章内容不能超过${maxLen}字` });
     }
     db.run(
         'INSERT INTO custom_articles (title, author, content, level) VALUES (?, ?, ?, ?)',
@@ -297,6 +307,27 @@ apiRouter.post('/articles/custom', (req, res) => {
         function(err) {
             if (err) return res.status(500).json({ success: false, message: err.message });
             res.json({ success: true, data: { id: this.lastID, message: '添加成功' } });
+        }
+    );
+});
+
+// 编辑自定义文章
+apiRouter.put('/articles/custom/:id', async (req, res) => {
+    const { title, author, content, level } = req.body;
+    if (!title || !content) {
+        return res.status(400).json({ success: false, message: '标题和内容不能为空' });
+    }
+    const maxLen = await getArticleMaxLength();
+    if (content.length > maxLen) {
+        return res.status(400).json({ success: false, message: `文章内容不能超过${maxLen}字` });
+    }
+    db.run(
+        'UPDATE custom_articles SET title=?, author=?, content=?, level=? WHERE id=?',
+        [title, author || null, content, level || 'medium', req.params.id],
+        function(err) {
+            if (err) return res.status(500).json({ success: false, message: err.message });
+            if (this.changes === 0) return res.status(404).json({ success: false, message: '文章不存在' });
+            res.json({ success: true, message: '修改成功' });
         }
     );
 });
@@ -310,14 +341,21 @@ apiRouter.delete('/articles/custom/:id', (req, res) => {
     });
 });
 
+// 获取文章字数上限配置
+apiRouter.get('/config/article-max-length', async (req, res) => {
+    const maxLen = await getArticleMaxLength();
+    res.json({ success: true, data: maxLen });
+});
+
 // ==================== AI 配置管理 API ====================
 
 const AI_KEY_FIELDS = ['zhipu_api_key', 'groq_api_key', 'gemini_api_key', 'deepseek_api_key', 'anthropic_api_key'];
+const BAIDU_OCR_FIELDS = ['baidu_ocr_app_id', 'baidu_ocr_api_key', 'baidu_ocr_secret_key'];
 
 // 从 DB 读取所有 AI 设置（Promise 封装）
 function loadAISettingsFromDB() {
     return new Promise((resolve) => {
-        db.all("SELECT key, value FROM settings WHERE key IN ('active_provider','zhipu_api_key','groq_api_key','gemini_api_key','deepseek_api_key','anthropic_api_key')", (err, rows) => {
+        db.all("SELECT key, value FROM settings WHERE key IN ('active_provider','zhipu_api_key','groq_api_key','gemini_api_key','deepseek_api_key','anthropic_api_key','baidu_ocr_app_id','baidu_ocr_api_key','baidu_ocr_secret_key','article_max_length')", (err, rows) => {
             const cfg = {};
             if (!err && rows) rows.forEach(r => { cfg[r.key] = r.value; });
             resolve(cfg);
@@ -338,24 +376,35 @@ apiRouter.get('/admin/settings', async (req, res) => {
             gemini_api_key:     mask(cfg.gemini_api_key),
             deepseek_api_key:   mask(cfg.deepseek_api_key),
             anthropic_api_key:  mask(cfg.anthropic_api_key),
-            // 是否已配置（给前端判断用）
             zhipu_set:     !!cfg.zhipu_api_key,
             groq_set:      !!cfg.groq_api_key,
             gemini_set:    !!cfg.gemini_api_key,
             deepseek_set:  !!cfg.deepseek_api_key,
-            anthropic_set: !!cfg.anthropic_api_key
+            anthropic_set: !!cfg.anthropic_api_key,
+            // 百度OCR
+            baidu_ocr_app_id:     mask(cfg.baidu_ocr_app_id),
+            baidu_ocr_api_key:    mask(cfg.baidu_ocr_api_key),
+            baidu_ocr_secret_key: mask(cfg.baidu_ocr_secret_key),
+            baidu_ocr_set: !!(cfg.baidu_ocr_app_id && cfg.baidu_ocr_api_key && cfg.baidu_ocr_secret_key),
+            article_max_length: parseInt(cfg.article_max_length) || 2000
         }
     });
 });
 
 // POST /api/admin/settings — 保存配置（空字符串 = 不更新该字段）
 apiRouter.post('/admin/settings', (req, res) => {
-    const { active_provider, zhipu_api_key, groq_api_key, gemini_api_key, deepseek_api_key, anthropic_api_key } = req.body;
+    const { active_provider, zhipu_api_key, groq_api_key, gemini_api_key, deepseek_api_key, anthropic_api_key,
+            baidu_ocr_app_id, baidu_ocr_api_key, baidu_ocr_secret_key, article_max_length } = req.body;
     const updates = [];
     if (active_provider !== undefined) updates.push(['active_provider', active_provider]);
-    const keyMap = { zhipu_api_key, groq_api_key, gemini_api_key, deepseek_api_key, anthropic_api_key };
+    const keyMap = { zhipu_api_key, groq_api_key, gemini_api_key, deepseek_api_key, anthropic_api_key,
+                     baidu_ocr_app_id, baidu_ocr_api_key, baidu_ocr_secret_key };
     for (const [k, v] of Object.entries(keyMap)) {
         if (v && v.trim()) updates.push([k, v.trim()]);
+    }
+    if (article_max_length !== undefined) {
+        const len = parseInt(article_max_length);
+        if (len >= 100 && len <= 10000) updates.push(['article_max_length', String(len)]);
     }
     if (!updates.length) return res.json({ success: true, message: '无需更新' });
 
@@ -363,7 +412,7 @@ apiRouter.post('/admin/settings', (req, res) => {
     updates.forEach(([k, v]) => stmt.run([k, v]));
     stmt.finalize((err) => {
         if (err) return res.status(500).json({ success: false, message: err.message });
-        console.log('✅ AI配置已保存:', updates.map(([k]) => k).join(', '));
+        console.log('✅ 配置已保存:', updates.map(([k]) => k).join(', '));
         res.json({ success: true, message: '配置已保存' });
     });
 });
@@ -619,6 +668,84 @@ apiRouter.post('/pinyin/expand', async (req, res) => {
     } catch (error) {
         console.error('❌ 拼音扩题失败:', error.message);
         res.status(500).json({ success: false, message: 'AI扩题失败：' + error.message });
+    }
+});
+
+// ==================== 百度OCR API ====================
+
+// 百度access_token缓存（有效期30天，提前1天刷新）
+let baiduTokenCache = { token: '', expires: 0 };
+
+async function getBaiduAccessToken(apiKey, secretKey) {
+    const https = require('https');
+    if (baiduTokenCache.token && Date.now() < baiduTokenCache.expires) return baiduTokenCache.token;
+
+    return new Promise((resolve, reject) => {
+        const path = `/oauth/2.0/token?grant_type=client_credentials&client_id=${encodeURIComponent(apiKey)}&client_secret=${encodeURIComponent(secretKey)}`;
+        const req = https.request({ hostname: 'aip.baidubce.com', path, method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }, (resp) => {
+            let data = '';
+            resp.on('data', c => data += c);
+            resp.on('end', () => {
+                try {
+                    const json = JSON.parse(data);
+                    if (!json.access_token) return reject(new Error(json.error_description || '获取token失败'));
+                    baiduTokenCache = { token: json.access_token, expires: Date.now() + (json.expires_in - 86400) * 1000 };
+                    resolve(json.access_token);
+                } catch(e) { reject(e); }
+            });
+        });
+        req.on('error', reject);
+        req.setTimeout(10000, () => { req.destroy(); reject(new Error('获取token超时')); });
+        req.end();
+    });
+}
+
+apiRouter.post('/ocr/baidu', async (req, res) => {
+    const { imageBase64 } = req.body;
+    if (!imageBase64) return res.status(400).json({ success: false, message: '缺少图片数据' });
+
+    const cfg = await loadAISettingsFromDB();
+    const appId    = cfg.baidu_ocr_app_id     || process.env.BAIDU_OCR_APP_ID;
+    const apiKey   = cfg.baidu_ocr_api_key    || process.env.BAIDU_OCR_API_KEY;
+    const secretKey= cfg.baidu_ocr_secret_key || process.env.BAIDU_OCR_SECRET_KEY;
+
+    if (!apiKey || !secretKey) {
+        return res.status(503).json({ success: false, message: '未配置百度OCR，请在后台AI设置中填入AppID/APIKey/SecretKey' });
+    }
+
+    try {
+        const token = await getBaiduAccessToken(apiKey, secretKey);
+        const https = require('https');
+        const base64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+        const bodyStr = `image=${encodeURIComponent(base64)}&language_type=CHN_ENG`;
+
+        const result = await new Promise((resolve, reject) => {
+            const reqBody = Buffer.from(bodyStr);
+            const reqOpts = {
+                hostname: 'aip.baidubce.com',
+                path: `/rest/2.0/ocr/v1/accurate_basic?access_token=${token}`,
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': reqBody.length }
+            };
+            const r = https.request(reqOpts, (resp) => {
+                let data = '';
+                resp.on('data', c => data += c);
+                resp.on('end', () => { try { resolve(JSON.parse(data)); } catch(e) { reject(e); } });
+            });
+            r.on('error', reject);
+            r.setTimeout(15000, () => { r.destroy(); reject(new Error('OCR请求超时')); });
+            r.write(reqBody);
+            r.end();
+        });
+
+        if (result.error_code) throw new Error(`百度OCR错误(${result.error_code}): ${result.error_msg}`);
+
+        const text = (result.words_result || []).map(w => w.words).join('\n');
+        console.log(`✅ 百度OCR识别完成，共${result.words_result_num || 0}行`);
+        res.json({ success: true, data: text });
+    } catch (error) {
+        console.error('❌ 百度OCR失败:', error.message);
+        res.status(500).json({ success: false, message: 'OCR识别失败：' + error.message });
     }
 });
 
