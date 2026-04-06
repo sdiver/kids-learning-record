@@ -447,6 +447,112 @@ function httpsPost(hostname, path, headers, body) {
     });
 }
 
+// ─── 拼音字典（模块级，供多处复用）─────────────────────────────────────────
+const PINYIN_DICT = {
+    '鹅': 'é', '曲': 'qū', '项': 'xiàng', '向': 'xiàng', '天': 'tiān', '歌': 'gē',
+    '白': 'bái', '毛': 'máo', '浮': 'fú', '绿': 'lǜ', '水': 'shuǐ', '红': 'hóng',
+    '掌': 'zhǎng', '拨': 'bō', '清': 'qīng', '波': 'bō', '床': 'chuáng', '前': 'qián',
+    '明': 'míng', '月': 'yuè', '光': 'guāng', '疑': 'yí', '地': 'dì', '上': 'shàng',
+    '霜': 'shuāng', '举': 'jǔ', '头': 'tóu', '望': 'wàng', '低': 'dī', '思': 'sī',
+    '故': 'gù', '乡': 'xiāng', '春': 'chūn', '眠': 'mián', '不': 'bù', '觉': 'jué',
+    '晓': 'xiǎo', '处': 'chù', '闻': 'wén', '啼': 'tí', '鸟': 'niǎo', '夜': 'yè',
+    '来': 'lái', '风': 'fēng', '雨': 'yǔ', '声': 'shēng', '花': 'huā', '落': 'luò',
+    '知': 'zhī', '多': 'duō', '少': 'shǎo', '小': 'xiǎo', '兔': 'tù', '子': 'zi',
+    '乖': 'guāi', '把': 'bǎ', '门': 'mén', '儿': 'ér', '开': 'kāi', '快': 'kuài',
+    '点': 'diǎn', '我': 'wǒ', '要': 'yào', '进': 'jìn', '妈': 'mā', '没': 'méi',
+    '回': 'huí', '谁': 'shuí', '也': 'yě', '锄': 'chú', '禾': 'hé', '日': 'rì',
+    '当': 'dāng', '午': 'wǔ', '汗': 'hàn', '滴': 'dī', '下': 'xià', '土': 'tǔ',
+    '盘': 'pán', '中': 'zhōng', '餐': 'cān', '粒': 'lì', '皆': 'jiē', '辛': 'xīn',
+    '苦': 'kǔ', '依': 'yī', '山': 'shān', '尽': 'jìn', '黄': 'huáng',
+    '河': 'hé', '入': 'rù', '海': 'hǎi', '流': 'liú', '欲': 'yù', '穷': 'qióng',
+    '千': 'qiān', '里': 'lǐ', '目': 'mù', '更': 'gèng', '层': 'céng', '楼': 'lóu',
+    '照': 'zhào', '香': 'xiāng', '炉': 'lú', '生': 'shēng', '紫': 'zǐ', '烟': 'yān',
+    '遥': 'yáo', '看': 'kàn', '瀑': 'pù', '布': 'bù', '挂': 'guà', '川': 'chuān',
+    '飞': 'fēi', '直': 'zhí', '三': 'sān', '尺': 'chǐ', '银': 'yín', '九': 'jiǔ',
+    '人': 'rén', '之': 'zhī', '初': 'chū', '性': 'xìng', '本': 'běn', '善': 'shàn',
+    '相': 'xiāng', '近': 'jìn', '习': 'xí', '远': 'yuǎn', '苟': 'gǒu', '教': 'jiào',
+    '乃': 'nǎi', '迁': 'qiān', '道': 'dào', '贵': 'guì', '以': 'yǐ', '专': 'zhuān'
+};
+
+// 查询拼音：本地字典优先，未找到则通过 AI 补查
+// 返回 { pinyin: string, from: 'local'|'ai'|'unknown' }
+async function resolvePinyin(char) {
+    if (PINYIN_DICT[char]) return { pinyin: PINYIN_DICT[char], from: 'local' };
+
+    try {
+        const dbCfg = await loadAISettingsFromDB();
+        const ZHIPU_KEY     = dbCfg.zhipu_api_key     || process.env.ZHIPU_API_KEY;
+        const GROQ_KEY      = dbCfg.groq_api_key      || process.env.GROQ_API_KEY;
+        const GEMINI_KEY    = dbCfg.gemini_api_key     || process.env.GEMINI_API_KEY;
+        const DEEPSEEK_KEY  = dbCfg.deepseek_api_key   || process.env.DEEPSEEK_API_KEY;
+        const ANTHROPIC_KEY = dbCfg.anthropic_api_key  || process.env.ANTHROPIC_API_KEY;
+        const activeProvider = dbCfg.active_provider || '';
+
+        if (!ZHIPU_KEY && !GROQ_KEY && !GEMINI_KEY && !DEEPSEEK_KEY && !ANTHROPIC_KEY) {
+            return { pinyin: '', from: 'unknown' };
+        }
+
+        const prompt = `请给出汉字"${char}"的拼音（带声调符号，仅拼音本身，不含任何其他文字）。例如：hǎo`;
+        const messages = [{ role: 'user', content: prompt }];
+
+        const callers = {
+            zhipu: async () => {
+                if (!ZHIPU_KEY) return null;
+                const r = await httpsPost('open.bigmodel.cn', '/api/paas/v4/chat/completions',
+                    { 'Authorization': `Bearer ${ZHIPU_KEY}` },
+                    { model: 'glm-4-flash', messages, max_tokens: 20 });
+                return r.status === 200 ? r.body.choices?.[0]?.message?.content?.trim() : null;
+            },
+            groq: async () => {
+                if (!GROQ_KEY) return null;
+                const r = await httpsPost('api.groq.com', '/openai/v1/chat/completions',
+                    { 'Authorization': `Bearer ${GROQ_KEY}` },
+                    { model: 'qwen/qwen3-32b', messages, max_tokens: 20 });
+                return r.status === 200 ? r.body.choices?.[0]?.message?.content?.trim() : null;
+            },
+            gemini: async () => {
+                if (!GEMINI_KEY) return null;
+                const r = await httpsPost('generativelanguage.googleapis.com',
+                    `/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`, {},
+                    { contents: [{ parts: [{ text: prompt }] }] });
+                return r.status === 200 ? r.body.candidates?.[0]?.content?.parts?.[0]?.text?.trim() : null;
+            },
+            deepseek: async () => {
+                if (!DEEPSEEK_KEY) return null;
+                const r = await httpsPost('api.deepseek.com', '/chat/completions',
+                    { 'Authorization': `Bearer ${DEEPSEEK_KEY}` },
+                    { model: 'deepseek-chat', messages, max_tokens: 20, stream: false });
+                return r.status === 200 ? r.body.choices?.[0]?.message?.content?.trim() : null;
+            },
+            anthropic: async () => {
+                if (!ANTHROPIC_KEY) return null;
+                const r = await httpsPost('api.anthropic.com', '/v1/messages',
+                    { 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
+                    { model: 'claude-haiku-4-5-20251001', max_tokens: 20, messages });
+                return r.status === 200 ? r.body.content?.[0]?.text?.trim() : null;
+            }
+        };
+
+        const order = activeProvider ? [activeProvider] : ['zhipu', 'groq', 'gemini', 'deepseek', 'anthropic'];
+        for (const provider of order) {
+            if (!callers[provider]) continue;
+            const raw = await callers[provider]().catch(() => null);
+            if (raw) {
+                // 只取第一个词（防止 AI 返回多余内容）
+                const pinyin = raw.split(/[\s，,。.]/)[0].toLowerCase();
+                if (pinyin) {
+                    console.log(`✅ 拼音AI补查（${provider}）：${char} → ${pinyin}`);
+                    return { pinyin, from: 'ai' };
+                }
+            }
+        }
+    } catch (e) {
+        console.error(`❌ 拼音AI补查失败：${char}`, e.message);
+    }
+
+    return { pinyin: '', from: 'unknown' };
+}
+
 // 解析 AI 返回文本 → { title, content }
 function parseArticleText(text, fallbackChar) {
     let title = `"${fallbackChar}"的故事`;
@@ -1252,9 +1358,9 @@ apiRouter.get('/mistakes/:kid_id', (req, res) => {
 });
 
 // 添加/更新错字
-apiRouter.post('/mistakes', (req, res) => {
+apiRouter.post('/mistakes', async (req, res) => {
     const { kid_id, char, pinyin, recognized, source } = req.body;
-    
+
     if (!kid_id || !char) {
         return res.status(400).json({ success: false, message: 'kid_id 和 char 不能为空' });
     }
@@ -1263,39 +1369,80 @@ apiRouter.post('/mistakes', (req, res) => {
     db.get(
         'SELECT * FROM mistakes WHERE kid_id = ? AND char = ?',
         [kid_id, char],
-        (err, row) => {
+        async (err, row) => {
             if (err) return res.status(500).json({ success: false, message: err.message });
 
             if (row) {
-                // 更新现有错字
+                // 更新现有错字；若原来拼音为空则顺便补查
                 const newCount = (row.count || 0) + 1;
                 const newStatus = row.status === 'mastered' ? 'practicing' : row.status;
-                
+                let resolvedPinyin = row.pinyin;
+                if (!resolvedPinyin) {
+                    const result = await resolvePinyin(char).catch(() => ({ pinyin: '', from: 'unknown' }));
+                    resolvedPinyin = result.pinyin;
+                }
+
                 db.run(
-                    `UPDATE mistakes SET 
-                        count = ?, 
-                        recognized = ?, 
+                    `UPDATE mistakes SET
+                        count = ?,
+                        recognized = ?,
                         last_wrong = CURRENT_TIMESTAMP,
-                        status = ?
+                        status = ?,
+                        pinyin = CASE WHEN pinyin = '' OR pinyin IS NULL THEN ? ELSE pinyin END
                     WHERE id = ?`,
-                    [newCount, recognized || '未识别', newStatus, row.id],
+                    [newCount, recognized || '未识别', newStatus, resolvedPinyin, row.id],
                     function(err) {
                         if (err) return res.status(500).json({ success: false, message: err.message });
                         res.json({ success: true, data: { id: row.id, updated: true, count: newCount } });
                     }
                 );
             } else {
-                // 添加新错字
+                // 插入新错字；若调用方未传拼音则自动补查
+                let finalPinyin = pinyin || '';
+                if (!finalPinyin) {
+                    const result = await resolvePinyin(char).catch(() => ({ pinyin: '', from: 'unknown' }));
+                    finalPinyin = result.pinyin;
+                }
+
                 db.run(
-                    `INSERT INTO mistakes (kid_id, char, pinyin, recognized, source, count, status) 
+                    `INSERT INTO mistakes (kid_id, char, pinyin, recognized, source, count, status)
                      VALUES (?, ?, ?, ?, ?, 1, 'new')`,
-                    [kid_id, char, pinyin || '', recognized || '未识别', source || '未知'],
+                    [kid_id, char, finalPinyin, recognized || '未识别', source || '未知'],
                     function(err) {
                         if (err) return res.status(500).json({ success: false, message: err.message });
-                        res.json({ success: true, data: { id: this.lastID, created: true } });
+                        res.json({ success: true, data: { id: this.lastID, created: true, pinyin: finalPinyin } });
                     }
                 );
             }
+        }
+    );
+});
+
+// 批量补全拼音（修复已有空拼音记录）
+apiRouter.post('/mistakes/backfill-pinyin', async (req, res) => {
+    db.all(
+        `SELECT id, char FROM mistakes WHERE pinyin IS NULL OR pinyin = ''`,
+        [],
+        async (err, rows) => {
+            if (err) return res.status(500).json({ success: false, message: err.message });
+            if (!rows || rows.length === 0) {
+                return res.json({ success: true, data: { fixed: 0, message: '没有需要补全的记录' } });
+            }
+
+            let fixed = 0;
+            for (const row of rows) {
+                const { pinyin } = await resolvePinyin(row.char).catch(() => ({ pinyin: '' }));
+                if (!pinyin) continue;
+                await new Promise((resolve) => {
+                    db.run('UPDATE mistakes SET pinyin = ? WHERE id = ?', [pinyin, row.id], (e) => {
+                        if (!e) fixed++;
+                        resolve();
+                    });
+                });
+            }
+
+            console.log(`✅ 批量补全拼音完成，共修复 ${fixed}/${rows.length} 条`);
+            res.json({ success: true, data: { fixed, total: rows.length } });
         }
     );
 });
@@ -1403,42 +1550,8 @@ apiRouter.delete('/mistakes/:id', (req, res) => {
 // 获取拼音（带缓存）
 apiRouter.get('/pinyin/:char', async (req, res) => {
     const char = req.params.char;
-    
-    // 简单的拼音字典（常用字）
-    const pinyinDict = {
-        '鹅': 'é', '曲': 'qū', '项': 'xiàng', '向': 'xiàng', '天': 'tiān', '歌': 'gē',
-        '白': 'bái', '毛': 'máo', '浮': 'fú', '绿': 'lǜ', '水': 'shuǐ', '红': 'hóng',
-        '掌': 'zhǎng', '拨': 'bō', '清': 'qīng', '波': 'bō', '床': 'chuáng', '前': 'qián',
-        '明': 'míng', '月': 'yuè', '光': 'guāng', '疑': 'yí', '地': 'dì', '上': 'shàng',
-        '霜': 'shuāng', '举': 'jǔ', '头': 'tóu', '望': 'wàng', '低': 'dī', '思': 'sī',
-        '故': 'gù', '乡': 'xiāng', '春': 'chūn', '眠': 'mián', '不': 'bù', '觉': 'jué',
-        '晓': 'xiǎo', '处': 'chù', '闻': 'wén', '啼': 'tí', '鸟': 'niǎo', '夜': 'yè',
-        '来': 'lái', '风': 'fēng', '雨': 'yǔ', '声': 'shēng', '花': 'huā', '落': 'luò',
-        '知': 'zhī', '多': 'duō', '少': 'shǎo', '小': 'xiǎo', '兔': 'tù', '子': 'zi',
-        '乖': 'guāi', '把': 'bǎ', '门': 'mén', '儿': 'ér', '开': 'kāi', '快': 'kuài',
-        '点': 'diǎn', '我': 'wǒ', '要': 'yào', '进': 'jìn', '妈': 'mā', '没': 'méi',
-        '回': 'huí', '谁': 'shuí', '也': 'yě', '锄': 'chú', '禾': 'hé', '日': 'rì',
-        '当': 'dāng', '午': 'wǔ', '汗': 'hàn', '滴': 'dī', '下': 'xià', '土': 'tǔ',
-        '盘': 'pán', '中': 'zhōng', '餐': 'cān', '粒': 'lì', '皆': 'jiē', '辛': 'xīn',
-        '苦': 'kǔ', '依': 'yī', '山': 'shān', '尽': 'jìn', '黄': 'huáng',
-        '河': 'hé', '入': 'rù', '海': 'hǎi', '流': 'liú', '欲': 'yù', '穷': 'qióng',
-        '千': 'qiān', '里': 'lǐ', '目': 'mù', '更': 'gèng', '层': 'céng', '楼': 'lóu',
-        '照': 'zhào', '香': 'xiāng', '炉': 'lú', '生': 'shēng', '紫': 'zǐ', '烟': 'yān',
-        '遥': 'yáo', '看': 'kàn', '瀑': 'pù', '布': 'bù', '挂': 'guà', '川': 'chuān',
-        '飞': 'fēi', '直': 'zhí', '三': 'sān', '尺': 'chǐ', '银': 'yín', '九': 'jiǔ',
-        '人': 'rén', '之': 'zhī', '初': 'chū', '性': 'xìng', '本': 'běn', '善': 'shàn',
-        '相': 'xiāng', '近': 'jìn', '习': 'xí', '远': 'yuǎn', '苟': 'gǒu', '教': 'jiào',
-        '乃': 'nǎi', '迁': 'qiān', '道': 'dào', '贵': 'guì', '以': 'yǐ', '专': 'zhuān'
-    };
-
-    const pinyin = pinyinDict[char];
-    
-    if (pinyin) {
-        res.json({ success: true, data: { char, pinyin, from: 'local' } });
-    } else {
-        // 对于不认识的字，返回空，让前端尝试其他方式
-        res.json({ success: true, data: { char, pinyin: '', from: 'unknown' } });
-    }
+    const { pinyin, from } = await resolvePinyin(char).catch(() => ({ pinyin: '', from: 'unknown' }));
+    res.json({ success: true, data: { char, pinyin, from } });
 });
 
 // 辅助函数：读取并修复 HTML 中的绝对路径
