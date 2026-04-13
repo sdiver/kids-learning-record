@@ -609,7 +609,7 @@ function renderArticle(content) {
     let html = '';
     for (let i = 0; i < content.length; i++) {
         const char = content[i];
-        const isPunct = /[，。！？、；：""''（）【】「」『』〈〉《》…—～·\s\r\n"'`!?,.:;()\[\]{}\-]/.test(char);
+        const isPunct = /[\u2018\u2019\u201A\u201B\u201C\u201D\u201E\u201F\uFF02\uFF07，。！？、；：""''（）【】「」『』〈〉《》…—～·\s\r\n"'`!?,.:;()\[\]{}\-]/.test(char);
 
         if (char === '\n') {
             html += '<br>';
@@ -804,8 +804,11 @@ function showInterimProgress(text) {
     clearInterimHighlight();
     if (!isReading || !text) return;
 
-    const punct = /[，。！？、；：""''（）【】「」『』〈〉《》…—～·\s\r\n"'`!?,.:;()\[\]{}\-]/g;
+    const punct = /[\u2018\u2019\u201A\u201B\u201C\u201D\u201E\u201F\uFF02\uFF07，。！？、；：""''（）【】「」『』〈〉《》…—～·\s\r\n"'`!?,.:;()\[\]{}\-]/g;
     const cleanText = text.replace(punct, '');
+
+    // 孩子正在说话，重置6秒超时
+    if (isReading && !isPaused) startCharTimeout();
 
     let tempIndex = currentIndex;
     let ri = 0;
@@ -827,7 +830,7 @@ function showInterimProgress(text) {
 function processRecognizedTextAdvanced(alternatives) {
     if (!currentArticle || currentIndex >= charElements.length) return;
 
-    const punct = /[，。！？、；：""''（）【】「」『』〈〉《》…—～·\s\r\n"'`!?,.:;()\[\]{}\-]/g;
+    const punct = /[\u2018\u2019\u201A\u201B\u201C\u201D\u201E\u201F\uFF02\uFF07，。！？、；：""''（）【】「」『』〈〉《》…—～·\s\r\n"'`!?,.:;()\[\]{}\-]/g;
 
     // ① 自我纠正检测：3秒内，若本次识别的第一个字与上次标错的字匹配 → 撤销错误
     if (lastWrongInfo && Date.now() - lastWrongInfo.time < 3000) {
