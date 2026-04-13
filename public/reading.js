@@ -40,6 +40,9 @@ let lastWrongInfo = null; // { index, char, time }
 let charTimeoutTimer = null;
 const CHAR_TIMEOUT_MS = 6000;
 
+// 手动纠错：已选中的错误字索引集合
+const selectedWrong = new Set();
+
 // 预置文章库
 const builtinArticles = [
     { id: 1, title: '咏鹅', author: '骆宾王', content: '鹅鹅鹅，曲项向天歌。白毛浮绿水，红掌拨清波。', level: 'easy' },
@@ -634,11 +637,25 @@ function renderArticle(content) {
 
 // 字符点击处理 - 优化版：任何时候点击都可以朗读
 function onCharClick(index, char) {
+    const charEl = document.querySelector(`.char[data-index="${index}"]`);
+
+    // 点击红色错误字：切换选中状态（支持多选）
+    if (charEl && charEl.classList.contains('wrong')) {
+        if (selectedWrong.has(index)) {
+            selectedWrong.delete(index);
+            charEl.classList.remove('selected-wrong');
+        } else {
+            selectedWrong.add(index);
+            charEl.classList.add('selected-wrong');
+        }
+        updateManualToolbar();
+        return; // 不播放发音，不显示提示
+    }
+
     // 播放发音（任何时候点击都可以听发音）
     speakChar(char);
 
     // 添加点击视觉反馈
-    const charEl = document.querySelector(`.char[data-index="${index}"]`);
     if (charEl) {
         charEl.classList.add('clicked');
         setTimeout(() => charEl.classList.remove('clicked'), 300);
@@ -654,6 +671,47 @@ function onCharClick(index, char) {
         // 非阅读模式下，显示简单的拼音提示
         showSimplePinyinHint(char);
     }
+}
+
+// 更新手动纠错工具栏
+function updateManualToolbar() {
+    const bar = document.getElementById('manualCorrectBar');
+    const countEl = document.getElementById('manualSelectCount');
+    if (!bar || !countEl) return;
+    if (selectedWrong.size > 0) {
+        countEl.textContent = selectedWrong.size;
+        bar.classList.remove('hidden');
+    } else {
+        bar.classList.add('hidden');
+    }
+}
+
+// 将选中的错误字改为正确
+function applyManualCorrect() {
+    selectedWrong.forEach(index => {
+        const el = charElements[index];
+        if (!el) return;
+        const expected = el.dataset.char;
+        el.classList.remove('wrong', 'selected-wrong');
+        el.classList.add('correct');
+        wrongCount = Math.max(0, wrongCount - 1);
+        correctCount++;
+        // 从错误列表移除
+        errorWords = errorWords.filter(e => e.expected !== expected);
+    });
+    selectedWrong.clear();
+    updateManualToolbar();
+    updateStats();
+}
+
+// 清除手动选中
+function clearManualSelection() {
+    selectedWrong.forEach(index => {
+        const el = charElements[index];
+        if (el) el.classList.remove('selected-wrong');
+    });
+    selectedWrong.clear();
+    updateManualToolbar();
 }
 
 // 开始朗读
@@ -729,6 +787,8 @@ function resetReading() {
     isReading = false;
     isPaused = false;
     clearCharTimeout();
+    selectedWrong.clear();
+    updateManualToolbar();
     currentIndex = 0;
     correctCount = 0;
     wrongCount = 0;
