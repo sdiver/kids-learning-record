@@ -764,7 +764,7 @@ function resetReading() {
 }
 
 // 处理语音识别结果
-function handleSpeechResult(event) {
+async function handleSpeechResult(event) {
     const results = event.results;
     const now = Date.now();
 
@@ -779,12 +779,17 @@ function handleSpeechResult(event) {
         }
 
         if (result.isFinal) {
-            // 终态结果：清除临时高亮，提交匹配
+            // 终态结果：先预取识别字的拼音，保证同音字能被正确匹配
             clearInterimHighlight();
+            clearCharTimeout(); // 等待拼音期间暂停超时
             recognitionBuffer += transcript;
             if (recognitionBuffer.length > 50) {
                 recognitionBuffer = recognitionBuffer.slice(-50);
             }
+            // 预取所有候选结果中汉字的拼音（已缓存的立即返回，不会延迟）
+            const allChars = [...new Set(alternatives.join('').split('').filter(c => /[\u4e00-\u9fa5]/.test(c)))];
+            await Promise.all(allChars.map(c => getPinyin(c)));
+
             processRecognizedTextAdvanced(alternatives);
             lastRecognitionTime = now;
         } else {
