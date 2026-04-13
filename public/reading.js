@@ -36,6 +36,10 @@ let currentCharRetries = 0;
 // 自我纠正窗口：记录最近一次标为错误的字，3秒内可被下一次识别撤销
 let lastWrongInfo = null; // { index, char, time }
 
+// 每字超时计时器：6秒内未说出则算错
+let charTimeoutTimer = null;
+const CHAR_TIMEOUT_MS = 6000;
+
 // 预置文章库
 const builtinArticles = [
     { id: 1, title: '咏鹅', author: '骆宾王', content: '鹅鹅鹅，曲项向天歌。白毛浮绿水，红掌拨清波。', level: 'easy' },
@@ -698,6 +702,7 @@ function startReading() {
 // 暂停朗读
 function pauseReading() {
     isPaused = true;
+    clearCharTimeout();
     document.getElementById('pauseBtn').classList.add('hidden');
     document.getElementById('resumeBtn').classList.remove('hidden');
     updateStatus('processing', '⏸️ 已暂停');
@@ -723,6 +728,7 @@ function resumeReading() {
 function resetReading() {
     isReading = false;
     isPaused = false;
+    clearCharTimeout();
     currentIndex = 0;
     correctCount = 0;
     wrongCount = 0;
@@ -1093,6 +1099,7 @@ function isCommonConfusion(expected, recognized) {
 
 // 标记正确
 function markCorrect(index) {
+    clearCharTimeout();
     const char = charElements[index];
     char.classList.remove('current');
     char.classList.add('correct');
@@ -1108,6 +1115,7 @@ function markCorrect(index) {
 
 // 标记错误
 function markWrong(index, recognized) {
+    clearCharTimeout();
     const char = charElements[index];
     if (!char) return;
 
@@ -1328,6 +1336,31 @@ function speakChar(char) {
     }, 50);
 }
 
+// 启动每字6秒超时计时器
+function startCharTimeout() {
+    clearCharTimeout();
+    charTimeoutTimer = setTimeout(() => {
+        if (isReading && !isPaused && currentIndex < charElements.length) {
+            markWrong(currentIndex, '超时');
+            currentIndex++;
+            currentCharRetries = 0;
+            if (currentIndex >= charElements.length) {
+                finishReading();
+            } else {
+                highlightCurrent();
+                updateProgress();
+            }
+        }
+    }, CHAR_TIMEOUT_MS);
+}
+
+function clearCharTimeout() {
+    if (charTimeoutTimer) {
+        clearTimeout(charTimeoutTimer);
+        charTimeoutTimer = null;
+    }
+}
+
 // 高亮当前字
 function highlightCurrent() {
     // 清除之前的高亮
@@ -1344,7 +1377,10 @@ function highlightCurrent() {
             behavior: 'smooth',
             block: 'center'
         });
-        
+
+        // 启动6秒超时计时器
+        startCharTimeout();
+
         // 提示模式下，如果重试多次，自动显示提示
         if (readingConfig.hintMode && currentCharRetries >= 2) {
             showCharHint(currentIndex);
