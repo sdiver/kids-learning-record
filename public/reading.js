@@ -40,8 +40,12 @@ let lastWrongInfo = null; // { index, char, time }
 let charTimeoutTimer = null;
 const CHAR_TIMEOUT_MS = 6000;
 
-// 手动纠错：已选中的错误字索引集合
+// 手动纠错：已选中的错误字 DOM 元素集合
 const selectedWrong = new Set();
+
+// 待定错字队列：markWrong 时暂存，finishReading 才真正写入错字本
+// applyManualCorrect 可从此队列撤销
+let pendingMistakes = []; // [{ char, recognized }]
 
 // 预置文章库
 const builtinArticles = [
@@ -641,11 +645,11 @@ function onCharClick(index, char) {
 
     // 点击红色错误字：切换选中状态（支持多选）
     if (charEl && charEl.classList.contains('wrong')) {
-        if (selectedWrong.has(index)) {
-            selectedWrong.delete(index);
+        if (selectedWrong.has(charEl)) {
+            selectedWrong.delete(charEl);
             charEl.classList.remove('selected-wrong');
         } else {
-            selectedWrong.add(index);
+            selectedWrong.add(charEl);
             charEl.classList.add('selected-wrong');
         }
         updateManualToolbar();
@@ -688,16 +692,17 @@ function updateManualToolbar() {
 
 // 将选中的错误字改为正确
 function applyManualCorrect() {
-    selectedWrong.forEach(index => {
-        const el = charElements[index];
-        if (!el) return;
+    selectedWrong.forEach(el => {
         const expected = el.dataset.char;
         el.classList.remove('wrong', 'selected-wrong');
         el.classList.add('correct');
         wrongCount = Math.max(0, wrongCount - 1);
         correctCount++;
-        // 从错误列表移除
+        // 从内存错误列表移除
         errorWords = errorWords.filter(e => e.expected !== expected);
+        // 从待定错字队列撤销（阻止写入错字本）
+        const idx = pendingMistakes.findIndex(m => m.char === expected);
+        if (idx !== -1) pendingMistakes.splice(idx, 1);
     });
     selectedWrong.clear();
     updateManualToolbar();
@@ -706,10 +711,7 @@ function applyManualCorrect() {
 
 // 清除手动选中
 function clearManualSelection() {
-    selectedWrong.forEach(index => {
-        const el = charElements[index];
-        if (el) el.classList.remove('selected-wrong');
-    });
+    selectedWrong.forEach(el => el.classList.remove('selected-wrong'));
     selectedWrong.clear();
     updateManualToolbar();
 }
@@ -789,6 +791,7 @@ function resetReading() {
     clearCharTimeout();
     selectedWrong.clear();
     updateManualToolbar();
+    pendingMistakes = [];
     currentIndex = 0;
     correctCount = 0;
     wrongCount = 0;
@@ -949,6 +952,21 @@ function processRecognizedTextAdvanced(alternatives) {
 
 // 贪婪前向匹配：带多步前瞻纠偏，始终向前推进，不因单字失败而中断
 function tryMatchText(text) {
+    // 跳过重复已读前缀：孩子从头重读时，识别文本以已读字开头
+    // 在识别文本里找当前期待字，若在前 min(currentIndex,20) 个字内命中则跳过前面部分
+    if (currentIndex > 0 && text.length > 1) {
+        const expectedNow = charElements[currentIndex]?.dataset?.char;
+        if (expectedNow) {
+            const maxSkip = Math.min(currentIndex, text.length - 1, 20);
+            for (let skip = 1; skip <= maxSkip; skip++) {
+                if (checkMatchAdvanced(expectedNow, text[skip]).isMatch) {
+                    text = text.slice(skip);
+                    break;
+                }
+            }
+        }
+    }
+
     const startIndex = currentIndex;
     let ri = 0; // 识别文本游标
 
@@ -1202,7 +1220,8 @@ function markWrong(index, recognized) {
         lastWrongInfo = { index, char: expected, time: Date.now() };
     }
 
-    addToMistakeBook(expected, recognized || '未识别');
+    // 写入待定队列，等 finishReading 时再提交（applyManualCorrect 可撤销）
+    pendingMistakes.push({ char: expected, recognized: recognized || '未识别' });
     updateStats();
 }
 
@@ -1507,11 +1526,20 @@ function updateProgress() {
 // 完成阅读
 function finishReading() {
     isReading = false;
+    clearCharTimeout();
 
     // 停止识别
     if (recognition) {
         recognition.stop();
     }
+
+    // 冲刷待定错字队列到错字本
+    pendingMistakes.forEach(m => addToMistakeBook(m.char, m.recognized));
+    pendingMistakes = [];
+
+    // 清空手动选中
+    selectedWrong.clear();
+    updateManualToolbar();
 
     // 更新UI
     document.getElementById('pauseBtn').classList.add('hidden');
