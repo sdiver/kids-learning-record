@@ -247,13 +247,6 @@
             }
         }
 
-        /* 实时识别中的临时高亮（未提交） */
-        .char.tentative {
-            background: #E3F2FD;
-            color: #1565c0;
-            transform: scale(1.08);
-        }
-
         /* 标点符号 */
         .punct {
             color: #999;
@@ -374,108 +367,6 @@
             margin-bottom: 15px;
         }
 
-        /* 状态指示器 */
-        .status-indicator {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            margin-top: 20px;
-            padding: 15px;
-            border-radius: 12px;
-            font-weight: 600;
-        }
-
-        .status-indicator.listening {
-            background: #E8F5E9;
-            color: #2e7d32;
-        }
-
-        .status-indicator.processing {
-            background: #FFF3E0;
-            color: #e65100;
-        }
-
-        .status-indicator.error {
-            background: #FFEBEE;
-            color: #c62828;
-        }
-
-        .status-indicator.success {
-            background: #E3F2FD;
-            color: #1565c0;
-        }
-
-        /* 麦克风动画 */
-        .mic-icon {
-            font-size: 1.5rem;
-            animation: pulse 1.5s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.2); }
-        }
-
-        /* 进度条 */
-        .progress-container {
-            margin-top: 20px;
-        }
-
-        .progress-bar {
-            width: 100%;
-            height: 10px;
-            background: #e0e0e0;
-            border-radius: 5px;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            transition: width 0.3s;
-        }
-
-        .progress-text {
-            text-align: center;
-            margin-top: 10px;
-            color: #666;
-            font-size: 0.9rem;
-        }
-
-        /* 设置区域 */
-        .settings-area {
-            background: white;
-            border-radius: 20px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-        }
-
-        .settings-title {
-            font-size: 1rem;
-            font-weight: 700;
-            color: #333;
-            margin-bottom: 15px;
-        }
-
-        .setting-item {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            margin-bottom: 10px;
-        }
-
-        .setting-label {
-            color: #666;
-            font-size: 0.9rem;
-        }
-
-        .speed-slider {
-            flex: 1;
-            max-width: 200px;
-        }
-
         /* 结果展示 */
         .result-area {
             background: #f8f9fa;
@@ -551,65 +442,6 @@
             color: white;
             border-radius: 15px;
             font-size: 1.2rem;
-        }
-
-        /* 手动纠错：选中状态 */
-        .char.selected-wrong {
-            background: #FF9800 !important;
-            color: white !important;
-            transform: scale(1.15);
-            box-shadow: 0 0 0 3px #FF6D00, 0 3px 10px rgba(255,109,0,0.4);
-            z-index: 1;
-        }
-
-        /* 手动纠错浮动工具栏 */
-        #manualCorrectBar {
-            position: fixed;
-            bottom: 24px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #1a1a2e;
-            color: white;
-            border-radius: 28px;
-            padding: 10px 8px 10px 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.35);
-            z-index: 2000;
-            font-size: 0.95rem;
-            white-space: nowrap;
-            animation: slideUp 0.2s ease;
-        }
-
-        #manualCorrectBar .bar-label {
-            opacity: 0.75;
-        }
-
-        #manualCorrectBar .bar-count {
-            font-weight: 800;
-            color: #FFD93D;
-            font-size: 1.1rem;
-        }
-
-        #manualCorrectBar .bar-btn {
-            border: none;
-            border-radius: 20px;
-            padding: 7px 16px;
-            font-size: 0.9rem;
-            font-weight: 700;
-            cursor: pointer;
-            font-family: inherit;
-        }
-
-        #manualCorrectBar .bar-btn-confirm {
-            background: #4CAF50;
-            color: white;
-        }
-
-        #manualCorrectBar .bar-btn-cancel {
-            background: rgba(255,255,255,0.15);
-            color: white;
         }
 
         /* 隐藏 */
@@ -702,25 +534,7 @@
         <!-- 头部 -->
         <div class="header">
             <h1>📖 魔法朗读屋</h1>
-            <p>大声朗读，魔法点亮每个字~</p>
-        </div>
-
-        <!-- 设置区域 -->
-        <div class="settings-area">
-            <div class="settings-title">⚙️ 阅读设置</div>
-            <div class="setting-item">
-                <span class="setting-label">朗读速度：</span>
-                <input type="range" class="speed-slider" id="speedSlider" min="1" max="5" value="3">
-                <span id="speedValue">正常</span>
-            </div>
-            <div class="control-row" style="margin-top: 15px;">
-                <button class="btn btn-mode" id="slowModeBtn" title="慢速模式：每个字之间有更多时间">
-                    🐇 正常模式
-                </button>
-                <button class="btn btn-mode active" id="hintModeBtn" title="提示模式：点击字可以看拼音">
-                    💡 提示开启
-                </button>
-            </div>
+            <p>孩子朗读时，家长点击读错的字（再次点击可取消）</p>
         </div>
 
         <!-- 文章选择 -->
@@ -742,15 +556,15 @@
                 <div class="article-title" id="articleTitle">请选择一篇文章</div>
                 <div class="reading-stats">
                     <div class="stat">
-                        <div class="stat-number" id="correctCount">0</div>
-                        <div class="stat-label">正确</div>
+                        <div class="stat-number" id="totalCharDisplay">0</div>
+                        <div class="stat-label">总字数</div>
                     </div>
                     <div class="stat">
                         <div class="stat-number" id="wrongCount">0</div>
-                        <div class="stat-label">错误</div>
+                        <div class="stat-label">标错</div>
                     </div>
                     <div class="stat">
-                        <div class="stat-number" id="accuracy">0%</div>
+                        <div class="stat-number" id="accuracy">—</div>
                         <div class="stat-label">正确率</div>
                     </div>
                 </div>
@@ -764,44 +578,20 @@
                 </div>
             </div>
 
-            <div class="progress-container hidden" id="progressContainer">
-                <div class="progress-bar">
-                    <div class="progress-fill" id="progressFill" style="width: 0%"></div>
-                </div>
-                <div class="progress-text" id="progressText">0 / 0 字</div>
-            </div>
-
-            <div class="status-indicator hidden" id="statusIndicator">
-                <span class="mic-icon">🎤</span>
-                <span id="statusText">准备就绪</span>
-            </div>
-
             <div class="control-area">
-                <button class="btn btn-primary" id="startBtn" onclick="startReading()">
-                    🎤 开始朗读
+                <button class="btn btn-primary" id="startBtn" onclick="startReading()" disabled>
+                    ▶️ 开始朗读
                 </button>
-                <button class="btn btn-secondary hidden" id="pauseBtn" onclick="pauseReading()">
-                    ⏸️ 暂停
-                </button>
-                <button class="btn btn-secondary hidden" id="resumeBtn" onclick="resumeReading()">
-                    ▶️ 继续
-                </button>
-                <button class="btn btn-skip hidden" id="skipBtn" onclick="skipCurrentChar()" title="跳过当前字">
-                    ⏭️ 跳过
+                <button class="btn btn-primary hidden" id="finishBtn" onclick="finishReading()">
+                    ✅ 完成
                 </button>
                 <button class="btn btn-secondary" id="resetBtn" onclick="resetReading()">
                     🔄 重新开始
-                </button>
-                <button class="btn btn-secondary" id="testMistakeBtn" onclick="testAddMistake()">
-                    🧪 测试错字本
                 </button>
                 <button class="btn btn-secondary hidden" id="saveBtn" onclick="saveReadingRecord()">
                     💾 保存记录
                 </button>
             </div>
-
-            <!-- 字提示容器 -->
-            <div id="charHint" class="hidden"></div>
 
             <div class="result-area hidden" id="resultArea">
                 <div class="result-score" id="resultScore">0%</div>
@@ -926,14 +716,6 @@
             input.value = '';
         }
     </script>
-    <!-- 手动纠错浮动工具栏 -->
-    <div id="manualCorrectBar" class="hidden">
-        <span class="bar-label">已选</span>
-        <span class="bar-count" id="manualSelectCount">0</span>
-        <span class="bar-label">字</span>
-        <button class="bar-btn bar-btn-confirm" onclick="applyManualCorrect()">✅ 改为正确</button>
-        <button class="bar-btn bar-btn-cancel" onclick="clearManualSelection()">✕</button>
-    </div>
 
     <script src="reading.js"></script>
 </body>
