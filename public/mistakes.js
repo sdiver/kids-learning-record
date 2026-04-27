@@ -257,12 +257,14 @@ function renderCards() {
 
 // ========== 字详情弹窗（瞬开，无网络请求） ==========
 
+let activeWriter = null;
+
 function showCharDetail(char) {
     const m = cachedMistakes.find(x => x.char === char);
     if (!m) return;
 
     const pinyin = m.pinyin || pinyinCache[char] || '';
-    const visual = charVisualData[char] || generateGenericVisual(char, pinyin);
+    const memoryTip = getMemoryTip(char, pinyin);
     const isMastered = m.status === 'mastered';
     const reviewCount = m.review_count || m.reviewCount || 0;
 
@@ -280,29 +282,22 @@ function showCharDetail(char) {
                 ${reviewCount > 0 ? `<div style="font-size:0.85rem;color:#888;margin-top:6px;">已复习 ${reviewCount} 次</div>` : ''}
             </div>
 
-            <div class="modal-section section-visual">
-                <div class="modal-section-title">🎨 形象记忆</div>
-                <div class="emoji">${visual.emoji}</div>
-                <div class="desc">${visual.desc}</div>
-            </div>
-
-            <div class="modal-section section-tianzige">
-                <div class="modal-section-title">✍️ 田字格</div>
-                <div class="tianzige">
-                    <div class="diagonal1"></div>
-                    <div class="diagonal2"></div>
-                    <div class="tz-char">${char}</div>
+            <div class="modal-section section-stroke">
+                <div class="modal-section-title">✍️ 笔顺学习</div>
+                <div class="stroke-container">
+                    <div id="stroke-target" class="stroke-target"></div>
                 </div>
-            </div>
-
-            <div class="modal-section section-etymology">
-                <div class="modal-section-title">📜 字源故事</div>
-                <div class="text">${visual.etymology}</div>
+                <div class="stroke-buttons">
+                    <button class="btn-animate" onclick="animateStroke()">▶ 播放笔顺</button>
+                    <button class="btn-quiz" onclick="startStrokeQuiz()">✏️ 跟我写</button>
+                    <button class="btn-reset" onclick="resetStroke()">↺ 重置</button>
+                </div>
+                <div class="quiz-feedback" id="quizFeedback"></div>
             </div>
 
             <div class="modal-section section-memory">
                 <div class="modal-section-title">💡 记忆口诀</div>
-                <div class="text">${visual.memory}</div>
+                <div class="text">${memoryTip}</div>
             </div>
 
             <div class="modal-actions">
@@ -319,7 +314,61 @@ function showCharDetail(char) {
     overlay.addEventListener('click', e => { if (e.target === overlay) closeCharDetail(); });
     document.addEventListener('keydown', handleModalEsc);
 
+    // 初始化 Hanzi Writer
+    try {
+        activeWriter = HanziWriter.create('stroke-target', char, {
+            width: 200,
+            height: 200,
+            padding: 10,
+            showOutline: true,
+            strokeAnimationSpeed: 1,
+            delayBetweenStrokes: 300,
+            strokeColor: '#333',
+            outlineColor: '#ddd',
+            drawingColor: '#667eea',
+            showHintAfterMisses: 2,
+            highlightOnComplete: true,
+            highlightColor: '#4CAF50'
+        });
+    } catch (e) {
+        console.error('Hanzi Writer 初始化失败:', e);
+        document.getElementById('stroke-target').innerHTML = `<div style="width:200px;height:200px;display:flex;align-items:center;justify-content:center;font-size:120px;font-family:KaiTi,楷体,serif;">${char}</div>`;
+    }
+
     setTimeout(() => speakChar(char), 300);
+}
+
+function animateStroke() {
+    if (!activeWriter) return;
+    activeWriter.animateCharacter();
+}
+
+function startStrokeQuiz() {
+    if (!activeWriter) return;
+    const feedback = document.getElementById('quizFeedback');
+    feedback.innerHTML = '<span style="color:#667eea;">用手指/鼠标跟着笔顺写吧！</span>';
+    activeWriter.quiz({
+        onCorrectStroke: function(data) {
+            feedback.innerHTML = `<span style="color:#4CAF50;">✓ 第 ${data.strokeNum + 1} 笔正确！</span>`;
+        },
+        onMistake: function(data) {
+            feedback.innerHTML = `<span style="color:#ff6b6b;">再试试第 ${data.strokeNum + 1} 笔</span>`;
+        },
+        onComplete: function(summary) {
+            const msg = summary.totalMistakes === 0
+                ? '🏆 太棒了！全部正确！'
+                : `✅ 写完了！错了 ${summary.totalMistakes} 笔`;
+            feedback.innerHTML = `<span style="color:#4CAF50;font-size:1.1rem;">${msg}</span>`;
+        }
+    });
+}
+
+function resetStroke() {
+    if (!activeWriter) return;
+    document.getElementById('quizFeedback').innerHTML = '';
+    activeWriter.hideCharacter();
+    activeWriter.showCharacter();
+    activeWriter.showOutline();
 }
 
 function handleModalEsc(e) {
@@ -332,6 +381,7 @@ function closeCharDetail() {
         modal.remove();
         document.removeEventListener('keydown', handleModalEsc);
     }
+    activeWriter = null;
 }
 
 // ========== 操作 ==========
@@ -826,104 +876,67 @@ async function addMistake(char, recognized, source) {
 
 // ========== 汉字图形数据 ==========
 
-const charVisualData = {
-    '日': { emoji: '☀️', desc: '太阳的形状', etymology: '甲骨文像一轮太阳，中间一点代表光芒', memory: '圆圆的太阳，发出温暖的光芒' },
-    '月': { emoji: '🌙', desc: '弯弯的月亮', etymology: '甲骨文像一弯新月', memory: '弯弯的月牙儿挂天上' },
-    '山': { emoji: '⛰️', desc: '三座山峰', etymology: '像三座连绵起伏的山峰', memory: '三座高山排排站' },
-    '水': { emoji: '💧', desc: '流动的水', etymology: '像流动的河水，中间是主流，两边是支流', memory: '小河流水哗啦啦' },
-    '火': { emoji: '🔥', desc: '燃烧的火焰', etymology: '像跳动的火苗', memory: '火苗向上窜，温暖又明亮' },
-    '木': { emoji: '🌲', desc: '一棵树', etymology: '上面是树枝，中间是树干，下面是树根', memory: '大树高高，根深叶茂' },
-    '人': { emoji: '🚶', desc: '站立的人', etymology: '像一个侧面站立的人', memory: '一个人，两条腿，站得直' },
-    '口': { emoji: '👄', desc: '嘴巴', etymology: '像人的嘴巴形状', memory: '一张嘴巴，吃饭说话都用它' },
-    '目': { emoji: '👁️', desc: '眼睛', etymology: '像人的眼睛，外框是眼眶', memory: '大大的眼睛看世界' },
-    '手': { emoji: '✋', desc: '手', etymology: '像五根手指张开的手', memory: '五根手指本领大' },
-    '足': { emoji: '🦶', desc: '脚', etymology: '像人的脚和腿', memory: '两只小脚走路快' },
-    '心': { emoji: '❤️', desc: '心脏', etymology: '像心脏的形状', memory: '一颗红心砰砰跳' },
-    '田': { emoji: '🌾', desc: '田地', etymology: '像一块块划分好的农田', memory: '方方田字格，种满庄稼' },
-    '禾': { emoji: '🌾', desc: '稻穗', etymology: '像成熟的稻穗垂下来', memory: '禾苗青青，结出稻穗' },
-    '鱼': { emoji: '🐟', desc: '鱼', etymology: '像有鱼头、鱼身、鱼尾的形状', memory: '小鱼水里游，摆摆尾巴摇摇头' },
-    '鸟': { emoji: '🐦', desc: '鸟', etymology: '像有头、羽、爪的鸟形', memory: '小鸟天上飞，翅膀扇扇' },
-    '马': { emoji: '🐴', desc: '马', etymology: '像马的侧面，有头、身、腿、尾', memory: '小马四条腿，跑得快如飞' },
-    '牛': { emoji: '🐮', desc: '牛', etymology: '像牛头，上面两角向上弯', memory: '牛头有两角，耕田力气大' },
-    '羊': { emoji: '🐑', desc: '羊', etymology: '像羊头，两角向下弯', memory: '山羊两角弯，爱吃青草山' },
-    '犬': { emoji: '🐕', desc: '狗', etymology: '像狗的侧面，有头、身、尾、腿', memory: '小狗汪汪叫，忠诚又可爱' },
-    '门': { emoji: '🚪', desc: '门', etymology: '像两扇门的形状', memory: '两扇门，开又关' },
-    '雨': { emoji: '🌧️', desc: '下雨', etymology: '上面是天空，下面是雨滴', memory: '云在天上飘，雨滴落下来' },
-    '云': { emoji: '☁️', desc: '云朵', etymology: '像天空中卷曲的云', memory: '白云天上飘，像棉花糖' },
-    '雪': { emoji: '❄️', desc: '雪花', etymology: '像飘落的雪花', memory: '雪花片片，洁白美丽' },
-    '风': { emoji: '🌬️', desc: '风', etymology: '像风吹动的样子', memory: '风吹树叶沙沙响' },
-    '石': { emoji: '🪨', desc: '石头', etymology: '像山崖下的石块', memory: '山下有块石，坚硬又结实' },
-    '土': { emoji: '🟫', desc: '土地', etymology: '像地上的土块', memory: '黄土黑土，养育万物' },
-    '金': { emoji: '🏆', desc: '金属', etymology: '像两块铜锭', memory: '黄金闪亮亮，珍贵又值钱' },
-    '春': { emoji: '🌸', desc: '春天', etymology: '太阳（日）下草木（屯）生长', memory: '春日阳光好，草木发芽了' },
-    '夏': { emoji: '☀️', desc: '夏天', etymology: '人在太阳下，天气炎热', memory: '夏日炎炎，阳光灿烂' },
-    '秋': { emoji: '🍂', desc: '秋天', etymology: '禾+火，禾谷成熟如火色', memory: '秋天禾谷熟，金黄一片' },
-    '冬': { emoji: '❄️', desc: '冬天', etymology: '像冰结在两头', memory: '冬天寒冷，冰雪覆盖' },
-    '东': { emoji: '🌅', desc: '东方', etymology: '太阳在木中升起', memory: '太阳从东方升起' },
-    '西': { emoji: '🌇', desc: '西方', etymology: '像鸟归巢，太阳落山', memory: '夕阳西下，鸟儿归巢' },
-    '南': { emoji: '🧭', desc: '南方', etymology: '像一种乐器，南方之音', memory: '指南针指向南方' },
-    '北': { emoji: '🧭', desc: '北方', etymology: '像两人相背', memory: '北方的方向' },
-    '上': { emoji: '⬆️', desc: '上面', etymology: '一长横为基准，短画在上', memory: '高高在上，向上攀登' },
-    '下': { emoji: '⬇️', desc: '下面', etymology: '一长横为基准，短画在下', memory: '向下看，脚踏实地' },
-    '大': { emoji: '📏', desc: '大的', etymology: '像张开双臂的人，表示大', memory: '人张开双臂，表示很大' },
-    '小': { emoji: '🤏', desc: '小的', etymology: '像细小的沙粒', memory: '小小的，像沙粒' },
-    '好': { emoji: '👍', desc: '好的', etymology: '女+子，有女有子为好', memory: '有儿有女，家庭美好' },
-    '花': { emoji: '🌺', desc: '花朵', etymology: '草字头+化，草的变化', memory: '草上开出美丽的花' },
-    '草': { emoji: '🌿', desc: '小草', etymology: '草字头+早，早晨的草', memory: '早晨的青草绿油油' },
-    '树': { emoji: '🌳', desc: '树木', etymology: '木+对，成对的木', memory: '两棵大树站在一起' },
-    '林': { emoji: '🌲', desc: '树林', etymology: '两木为林', memory: '两棵树就是一片小林' },
-    '森': { emoji: '🌲', desc: '森林', etymology: '三木为森', memory: '三棵树就是茂密森林' },
-    '明': { emoji: '💡', desc: '明亮', etymology: '日+月，日月光明', memory: '日月同辉，光明灿烂' },
-    '星': { emoji: '⭐', desc: '星星', etymology: '日生，日生光辉', memory: '晚上出生的光点就是星' },
-    '光': { emoji: '💫', desc: '光明', etymology: '火在人上，火光照明', memory: '火光照耀，一片光明' },
-    '家': { emoji: '🏡', desc: '家', etymology: '屋里有猪（豕），表示有财产', memory: '家里有猪，表示富裕温暖' },
-    '学': { emoji: '📚', desc: '学习', etymology: '双手（臼）在算（子）', memory: '双手捧书认真学习' },
-    '爱': { emoji: '❤️', desc: '爱心', etymology: '心+旡，心中有情', memory: '心中有爱，用心爱' },
-    '看': { emoji: '👀', desc: '看见', etymology: '手+目，用手遮目远望', memory: '手搭凉棚，远远看' },
-    '听': { emoji: '👂', desc: '听见', etymology: '口+斤，用耳倾听', memory: '用耳朵听，静静听' },
-    '说': { emoji: '💬', desc: '说话', etymology: '言+兑，用嘴表达', memory: '开口说话，言字旁' },
-    '走': { emoji: '🚶‍♂️', desc: '走路', etymology: '像人摆臂行走', memory: '大步走路，向前走' },
-    '飞': { emoji: '🦅', desc: '飞翔', etymology: '像鸟展翅飞翔', memory: '小鸟飞上天，翅膀扇动' },
-    '笑': { emoji: '😄', desc: '微笑', etymology: '竹+夭，像人笑的样子', memory: '竹字头下一个人，笑哈哈' },
-    '哭': { emoji: '😭', desc: '哭泣', etymology: '像犬吠，引申为哭泣', memory: '两只大眼睛，在哭泣' }
+// 记忆口诀数据（仅保留 memory 字段）
+const charMemoryData = {
+    '日': '圆圆的太阳，发出温暖的光芒',
+    '月': '弯弯的月牙儿挂天上',
+    '山': '三座高山排排站',
+    '水': '小河流水哗啦啦',
+    '火': '火苗向上窜，温暖又明亮',
+    '木': '大树高高，根深叶茂',
+    '人': '一个人，两条腿，站得直',
+    '口': '一张嘴巴，吃饭说话都用它',
+    '目': '大大的眼睛看世界',
+    '手': '五根手指本领大',
+    '心': '一颗红心砰砰跳',
+    '田': '方方田字格，种满庄稼',
+    '鱼': '小鱼水里游，摆摆尾巴摇摇头',
+    '鸟': '小鸟天上飞，翅膀扇扇',
+    '马': '小马四条腿，跑得快如飞',
+    '牛': '牛头有两角，耕田力气大',
+    '羊': '山羊两角弯，爱吃青草山',
+    '门': '两扇门，开又关',
+    '雨': '云在天上飘，雨滴落下来',
+    '云': '白云天上飘，像棉花糖',
+    '风': '风吹树叶沙沙响',
+    '春': '春日阳光好，草木发芽了',
+    '好': '女+子，有儿有女，家庭美好',
+    '花': '草上开出美丽的花',
+    '林': '两木为林',
+    '森': '三木为森，茂密森林',
+    '明': '日+月，日月同辉，光明灿烂',
+    '家': '宝盖头下有豕（猪），家里富裕温暖',
+    '学': '双手捧书认真学习',
+    '爱': '心中有爱，用心爱',
+    '看': '手搭凉棚（目），远远看',
+    '飞': '像鸟展翅飞翔',
+    '笑': '竹字头下一个人，笑哈哈'
 };
 
-function generateGenericVisual(char, pinyin) {
-    const commonRadicals = {
-        '氵': { name: '三点水', meaning: '和水有关', emoji: '💧' },
-        '扌': { name: '提手旁', meaning: '和手的动作有关', emoji: '✋' },
-        '口': { name: '口字旁', meaning: '和嘴巴有关', emoji: '👄' },
-        '亻': { name: '单人旁', meaning: '和人有关', emoji: '👤' },
-        '木': { name: '木字旁', meaning: '和树木有关', emoji: '🌲' },
-        '艹': { name: '草字头', meaning: '和植物有关', emoji: '🌿' },
-        '讠': { name: '言字旁', meaning: '和说话有关', emoji: '💬' },
-        '纟': { name: '绞丝旁', meaning: '和丝线有关', emoji: '🧵' },
-        '忄': { name: '竖心旁', meaning: '和心理有关', emoji: '❤️' },
-        '宀': { name: '宝盖头', meaning: '和房屋有关', emoji: '🏠' },
-        '辶': { name: '走之旁', meaning: '和行走有关', emoji: '🚶' },
-        '钅': { name: '金字旁', meaning: '和金属有关', emoji: '⚙️' },
-        '女': { name: '女字旁', meaning: '和女性有关', emoji: '👩' },
-        '日': { name: '日字旁', meaning: '和太阳、时间有关', emoji: '☀️' },
-        '月': { name: '月字旁', meaning: '和月亮、身体有关', emoji: '🌙' }
-    };
+// 部首→记忆提示（兜底）
+const radicalHints = {
+    '氵': '三点水——和水有关',
+    '扌': '提手旁——和手的动作有关',
+    '口': '口字旁——和嘴巴有关',
+    '亻': '单人旁——和人有关',
+    '木': '木字旁——和树木有关',
+    '艹': '草字头——和植物有关',
+    '讠': '言字旁——和说话有关',
+    '纟': '绞丝旁——和丝线有关',
+    '忄': '竖心旁——和心理有关',
+    '宀': '宝盖头——和房屋有关',
+    '辶': '走之旁——和行走有关',
+    '钅': '金字旁——和金属有关',
+    '日': '日字旁——和太阳、时间有关',
+    '月': '月字旁——和月亮、身体有关'
+};
 
-    for (const [radical, info] of Object.entries(commonRadicals)) {
-        if (char.includes(radical)) {
-            return {
-                emoji: info.emoji,
-                desc: `包含"${info.name}"，${info.meaning}`,
-                etymology: `${info.name}，${info.meaning}`,
-                memory: `${char}字有${info.name}，${info.meaning}`
-            };
-        }
+function getMemoryTip(char, pinyin) {
+    if (charMemoryData[char]) return charMemoryData[char];
+    for (const [radical, hint] of Object.entries(radicalHints)) {
+        if (char.includes(radical)) return `${char}字有${hint}`;
     }
-
-    return {
-        emoji: '📝',
-        desc: `汉字"${char}"`,
-        etymology: `"${char}"是一个汉字，读作${pinyin || '...'}`,
-        memory: `"${char}"字要记牢，多读多写就会了！`
-    };
+    return `"${char}"（${pinyin || '...'}）多读多写就记住了！`;
 }
 
 // ========== 初始化 ==========

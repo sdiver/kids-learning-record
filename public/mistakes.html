@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>错字消灭站 - 小朋友学习记录</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -513,87 +514,62 @@
             gap: 6px;
         }
 
-        .section-visual {
-            background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+        .section-stroke {
+            background: #fafafa;
             text-align: center;
         }
 
-        .section-visual .emoji {
-            font-size: 4rem;
+        .stroke-container {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            margin-bottom: 12px;
         }
 
-        .section-visual .desc {
-            color: #555;
-            margin-top: 8px;
-            line-height: 1.5;
-        }
-
-        .section-tianzige {
-            background: #fafafa;
-        }
-
-        .tianzige {
-            width: 160px;
-            height: 160px;
-            margin: 0 auto;
-            border: 3px solid #667eea;
-            position: relative;
+        .stroke-target {
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
             background: white;
         }
 
-        .tianzige::before,
-        .tianzige::after {
-            content: '';
-            position: absolute;
+        .stroke-buttons {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .stroke-buttons button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        .btn-animate {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-quiz {
+            background: linear-gradient(135deg, #FF9800, #F57C00);
+            color: white;
+        }
+
+        .btn-reset {
             background: #e0e0e0;
-        }
-
-        .tianzige::before {
-            width: 100%;
-            height: 1px;
-            top: 50%;
-            left: 0;
-        }
-
-        .tianzige::after {
-            width: 1px;
-            height: 100%;
-            top: 0;
-            left: 50%;
-        }
-
-        .tianzige .diagonal1,
-        .tianzige .diagonal2 {
-            position: absolute;
-            width: 141%;
-            height: 1px;
-            background: #e0e0e0;
-            top: 50%;
-            left: -20.5%;
-            transform-origin: center;
-        }
-
-        .tianzige .diagonal1 { transform: rotate(45deg); }
-        .tianzige .diagonal2 { transform: rotate(-45deg); }
-
-        .tianzige .tz-char {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 100px;
-            font-family: "KaiTi", "楷体", "STKaiti", serif;
-            color: #333;
-            z-index: 10;
-        }
-
-        .section-etymology {
-            background: linear-gradient(135deg, #fff9e6 0%, #ffefc2 100%);
-        }
-
-        .section-etymology .text {
             color: #666;
-            line-height: 1.6;
+        }
+
+        .quiz-feedback {
+            margin-top: 10px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            min-height: 24px;
         }
 
         .section-memory {
