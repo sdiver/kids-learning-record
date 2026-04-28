@@ -2042,69 +2042,6 @@
             addKidsModeToggle();
         });
 
-        // 修改保存成功处理 - 清除草稿
-        saveBtn.addEventListener('click', async () => {
-            const subjectEl = document.querySelector('.subject-option.selected');
-            const subjectId = subjectEl ? subjectEl.dataset.subject : subjectsList[0]?.id;
-            const date = document.getElementById('learningDate').value;
-            const duration = document.getElementById('duration').value;
-            const content = document.getElementById('content').value;
-            const mood = document.getElementById('mood').value;
-            const notes = document.getElementById('notes').value;
-            const performance = currentRating || 3;
-
-            if (!duration || !content) {
-                alert('请填写完整信息');
-                return;
-            }
-
-            try {
-                const res = await fetch(`${API_BASE}/records`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        kid_id: currentKid,
-                        subject_id: subjectId,
-                        learning_date: date,
-                        duration: parseInt(duration),
-                        content,
-                        performance,
-                        mood,
-                        notes
-                    })
-                });
-
-                const result = await res.json();
-
-                if (result.success) {
-                    alert(`学习记录保存成功！获得 ${result.data.points_earned} 积分！`);
-                    modal.classList.remove('show');
-
-                    // 刷新数据
-                    await loadStats(currentKid);
-                    await loadRecords(currentKid);
-
-                    // 清空表单并清除草稿
-                    document.getElementById('duration').value = '';
-                    document.getElementById('content').value = '';
-                    document.getElementById('notes').value = '';
-                    currentRating = 0;
-                    updateStarDisplay(0);
-                    performanceLabel.textContent = '点击星星评分';
-                    clearDraft();
-
-                    // 移除学习提示
-                    const oldTip = document.querySelector('.learning-tip');
-                    if (oldTip) oldTip.remove();
-                } else {
-                    alert('保存失败: ' + result.message);
-                }
-            } catch (error) {
-                alert('保存失败，请检查网络连接');
-                console.error(error);
-            }
-        });
-
         // 修改打开模态框逻辑 - 加载草稿
         addBtn.addEventListener('click', () => {
             if (!currentKid) {
@@ -2158,13 +2095,14 @@
                     await loadStats(currentKid);
                     await loadRecords(currentKid);
 
-                    // 清空表单
+                    // 清空表单并清除草稿
                     document.getElementById('duration').value = '';
                     document.getElementById('content').value = '';
                     document.getElementById('notes').value = '';
                     currentRating = 0;
                     updateStarDisplay(0);
                     performanceLabel.textContent = '点击星星评分';
+                    clearDraft();
 
                     // 移除学习提示
                     const oldTip = document.querySelector('.learning-tip');
